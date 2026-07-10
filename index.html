@@ -87,7 +87,8 @@ label:first-child{margin-top:0}
 .appcard:active{transform:scale(.985)}
 .appcard .edge{position:absolute;left:0;top:0;bottom:0;width:4px}
 .ac-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
-.ac-company{font-size:16.5px;font-weight:900;line-height:1.4}
+.ac-company-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+.ac-company{font-size:16.5px;font-weight:900;line-height:1.4;min-width:0}
 .ac-sub{font-size:12.5px;color:var(--muted);margin-top:2px;font-weight:650}
 .dday{
   flex-shrink:0;font-size:12px;font-weight:900;border-radius:9px;padding:5px 9px;
@@ -110,13 +111,12 @@ label:first-child{margin-top:0}
 .ac-meta{display:flex;gap:12px;margin-top:10px;font-size:12px;color:var(--faint);font-weight:650;flex-wrap:wrap}
 .ac-meta svg{width:13px;height:13px;vertical-align:-2px;margin-right:3px}
 .infobtn{
-  flex-shrink:0;margin-left:auto;display:flex;align-items:center;gap:4px;
+  flex-shrink:0;display:inline-flex;align-items:center;gap:4px;
   border:1px solid var(--accent);background:var(--accent-soft);color:#dcd6ff;
-  border-radius:999px;padding:5px 11px;font-size:11.5px;font-weight:850;cursor:pointer;min-height:30px;
+  border-radius:999px;padding:4px 9px;font-size:11px;font-weight:850;cursor:pointer;min-height:27px;
 }
 .infobtn:active{transform:scale(.94)}
 .infobtn svg{width:12px;height:12px}
-.cheer-cnt{color:#ff9bc0;font-weight:850}
 
 .empty{background:var(--surface3);border:1px dashed var(--border);border-radius:var(--radius);padding:34px 18px;text-align:center;color:var(--muted);font-size:14.5px;line-height:1.9}
 
@@ -170,22 +170,35 @@ label:first-child{margin-top:0}
 .memo-view{background:var(--surface3);border:1px solid var(--border-soft);border-radius:12px;padding:12px 14px;font-size:14px;color:#cdd4f5;white-space:pre-wrap;line-height:1.75;margin-bottom:14px}
 .sec-label{font-size:12.5px;font-weight:900;color:var(--muted);margin:18px 0 8px;letter-spacing:.3px}
 
-/* 응원 */
-.cheer{background:#1d1220;border:1px solid #4d2a44;border-radius:12px;padding:10px 13px;margin-bottom:8px}
+/* 메인 응원 게시판 */
+.cheer-board{
+  margin-top:18px;background:var(--surface);border:1px solid #4d2a44;
+  border-radius:var(--radius);padding:16px;
+}
+.cheer-board-title{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:3px}
+.cheer-board-title b{font-size:16px;font-weight:900;color:#ffd4e6}
+.cheer-board-title span{font-size:11.5px;color:var(--faint);font-weight:750}
+.cheer-list{display:grid;gap:8px}
+.cheer{background:#1d1220;border:1px solid #4d2a44;border-radius:12px;padding:10px 13px}
 .cheer .who{font-size:11.5px;font-weight:900;color:#ff9bc0}
-.cheer .txt{font-size:14px;line-height:1.7}
+.cheer .txt{font-size:14px;line-height:1.7;white-space:pre-wrap;word-break:break-word}
 .cheer .when{font-size:10.5px;color:var(--faint)}
 .cheer-head{display:flex;align-items:center;gap:6px}
 .cheer-head .who{margin-right:auto}
 .cheer-act{background:none;border:0;color:var(--faint);font-size:11px;font-weight:850;cursor:pointer;padding:4px 6px}
 .cheer-act.del{color:#ff9ba3}
-.cheer-edit{display:flex;gap:6px;margin-top:6px}
+.cheer-edit{display:flex;gap:6px;margin-top:7px}
 .cheer-edit input{flex:1;padding:9px 11px}
 .cheer-edit button{flex-shrink:0;min-width:56px;border-radius:10px;border:0;background:#c94f86;color:#fff;font-weight:900;font-size:13px;cursor:pointer}
-.cheer-form{display:flex;gap:7px;margin-top:10px}
-.cheer-form .nm{width:86px;flex-shrink:0;padding:12px 10px}
-.cheer-form .tx{flex:1;min-width:0}
-.cheer-form button{flex-shrink:0;min-width:68px;border-radius:12px;border:0;background:#c94f86;color:#fff;font-weight:900;font-size:14px;cursor:pointer}
+.cheer-form{display:grid;grid-template-columns:88px 1fr 68px;gap:7px;margin-top:12px}
+.cheer-form .nm{padding:12px 10px}
+.cheer-form .tx{min-width:0}
+.cheer-form button{border-radius:12px;border:0;background:#c94f86;color:#fff;font-weight:900;font-size:14px;cursor:pointer}
+.cheer-empty{background:var(--surface3);border:1px dashed #4d2a44;border-radius:12px;padding:18px;text-align:center;color:var(--muted);font-size:13.5px}
+@media (max-width:520px){
+  .cheer-form{grid-template-columns:82px 1fr}
+  .cheer-form button{grid-column:1/-1;min-height:44px}
+}
 
 .btnrow{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:20px}
 .btn{
@@ -241,6 +254,20 @@ label:first-child{margin-top:0}
     <button class="sortbtn" id="sortBtn"></button>
   </div>
   <div class="list" id="list"></div>
+
+  <section class="cheer-board" id="cheerBoard">
+    <div class="cheer-board-title">
+      <b>응원 한마디 ♥</b>
+      <span id="globalCheerCount">0개</span>
+    </div>
+    <div class="cheer-list" id="globalCheerList"></div>
+    <div class="cheer-form">
+      <input class="nm" id="globalCheerName" maxlength="12" placeholder="이름"/>
+      <input class="tx" id="globalCheerInput" maxlength="100" placeholder="예: 오늘도 파이팅!! 🍀"/>
+      <button id="globalCheerBtn">남기기</button>
+    </div>
+  </section>
+
   <p class="sync-note" id="storageNote"></p>
 </main>
 
@@ -311,6 +338,7 @@ import { getDatabase, ref, get, set, onValue, runTransaction } from 'https://www
 /* ================= Firebase 실시간 저장소 =================
    - Claude 계정/로그인 불필요
    - URL의 #room=... 값이 같은 사람끼리 동일 데이터 사용
+   - 회사별 응원 대신 메인 화면 하단의 공용 응원 게시판 사용
    - Firebase 설정값은 아래 firebaseConfig에 한 번만 입력 */
 const firebaseConfig = {
   apiKey: "AIzaSyCv5WXLMLarBwZTmTApx4ScvxvYBDhlT3U",
@@ -366,6 +394,7 @@ const seed = () => {
 };
 
 let apps = [];
+let cheers = [];
 let appTitle = '취준 트래커';
 let filter = 'all';
 let sortMode = 'deadline'; // deadline | recent
@@ -377,6 +406,31 @@ function applyRemote(data, showToast=false){
   const raw = JSON.stringify(data);
   const changed = lastRaw && raw !== lastRaw;
   apps = Array.isArray(data.apps) ? data.apps : [];
+
+  if (Array.isArray(data.cheers)){
+    cheers = data.cheers.map((c, i) => ({
+      id: c.id || ('legacy-global-' + i),
+      name: c.name || '익명',
+      text: c.text || '',
+      date: c.date || '',
+      createdAt: c.createdAt || 0
+    }));
+  } else {
+    // 구버전의 회사별 응원은 사라지지 않도록 공용 응원으로 한 번 이어받습니다.
+    cheers = [];
+    apps.forEach((a, ai) => {
+      (Array.isArray(a.cheers) ? a.cheers : []).forEach((c, ci) => {
+        cheers.push({
+          id: c.id || ('legacy-' + (a.id || ai) + '-' + ci),
+          name: c.name || '익명',
+          text: c.text || '',
+          date: c.date || '',
+          createdAt: c.createdAt || 0
+        });
+      });
+    });
+  }
+
   appTitle = data.title || '취준 트래커';
   lastRaw = raw;
   renderTitle();
@@ -406,12 +460,12 @@ async function initRealtime(){
     // 첫 접속일 때만 기본 데이터를 생성합니다. 기존 데이터는 건드리지 않습니다.
     await runTransaction(stateRef, current => {
       if (current !== null) return current;
-      return { title: '취준 트래커', apps: seed(), updatedAt: Date.now() };
+      return { title: '취준 트래커', apps: seed(), cheers: [], updatedAt: Date.now() };
     }, { applyLocally: false });
 
     realtimeUnsubscribe = onValue(stateRef, snapshot => {
       connectionState = 'connected';
-      applyRemote(snapshot.val() || {title:'취준 트래커', apps:[]});
+      applyRemote(snapshot.val() || {title:'취준 트래커', apps:[], cheers:[]});
     }, error => {
       connectionState = 'error';
       lastError = error?.message || String(error);
@@ -447,7 +501,7 @@ async function persist(){
     toast('저장할 수 없습니다 — Firebase 연결을 먼저 완료하세요');
     throw new Error('Firebase not connected');
   }
-  const data = { title: appTitle, apps, updatedAt: Date.now() };
+  const data = { title: appTitle, apps, cheers, updatedAt: Date.now() };
   try {
     await set(stateRef, data);
     lastRaw = JSON.stringify(data);
@@ -534,6 +588,18 @@ function dday(deadline){
   const d = new Date(deadline+'T00:00:00');
   return Math.round((d - today)/86400000);
 }
+function fmtCheerDateTime(ts, fallback=''){
+  const n = Number(ts);
+  if (!n || Number.isNaN(n)) return fallback || '';
+  const d = new Date(n);
+  if (Number.isNaN(d.getTime())) return fallback || '';
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  const hh = String(d.getHours()).padStart(2,'0');
+  const mm = String(d.getMinutes()).padStart(2,'0');
+  return y+'.'+m+'.'+day+' '+hh+':'+mm;
+}
 function toast(msg){
   const t = document.getElementById('toast');
   t.textContent = msg; t.classList.add('show');
@@ -600,22 +666,22 @@ function render(){
       else if (dd <= 7) ddHtml = '<span class="dday soon">D-'+dd+'</span>';
       else ddHtml = '<span class="dday">D-'+dd+'</span>';
     }
-    const cheers = (a.cheers||[]).length;
     return '<div class="appcard" data-id="'+a.id+'">'
       + '<div class="edge" style="background:'+edgeColor[a.stage]+'"></div>'
-      + '<div class="ac-top"><div><div class="ac-company">'+esc(a.company)+'</div>'
+      + '<div class="ac-top"><div>'
+      + '<div class="ac-company-row"><div class="ac-company">'+esc(a.company)+'</div>'
+      + '<button class="infobtn" data-link="'+a.id+'">회사정보 '
+      + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M10 14 21 3M21 3h-6M21 3v6M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>'
+      + '</button></div>'
       + '<div class="ac-sub">'+esc(a.platform)+' · '+esc(a.region||'지역 미입력')+'</div></div>'+ddHtml+'</div>'
       + '<div class="ac-badges">'
       + (a.role ? '<span class="bdg role">'+esc(a.role)+'</span>' : '')
       + '<span class="bdg stage-'+a.stage+'">● '+STAGES[a.stage]+'</span>'
       + '<span class="bdg '+(a.viewed?'viewed':'')+'">'+(a.viewed?'열람':'미열람')+'</span>'
-      + '<button class="infobtn" data-link="'+a.id+'">회사정보 '
-      + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M10 14 21 3M21 3h-6M21 3v6M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>'
-      + '</button></div>'
+      + '</div>'
       + '<div class="ac-meta">'
       + '<span>제출 '+fmtDate(a.submitDate).replace('2026년 ','')+'</span>'
       + (a.interviewDate ? '<span>🗓 면접 '+fmtDT(a.interviewDate)+'</span>' : '')
-      + (cheers ? '<span class="cheer-cnt">♥ 응원 '+cheers+'</span>' : '')
       + '</div></div>';
   }).join('')
   : '<div class="empty">'+(filter==='all' ? '아직 등록된 지원이 없어요.<br/>오른쪽 아래 「지원 추가」로 시작하세요!' : '이 조건에 해당하는 지원이 없어요.')+'</div>';
@@ -626,6 +692,8 @@ function render(){
     const a = apps.find(x => x.id === b.dataset.link);
     if (a) openUrl(bestLink(a));
   }));
+
+  renderGlobalCheers();
 }
 
 /* ---------- 상세 시트 ---------- */
@@ -659,60 +727,10 @@ function openDetail(id){
   const link = '';
   const memo = a.memo ? '<div class="sec-label">회사 정보 · 메모</div><div class="memo-view">'+esc(a.memo)+'</div>' : '';
 
-  const cheers = (a.cheers||[]).map((c,ci) =>
-    '<div class="cheer" data-ci="'+ci+'">'
-    + '<div class="cheer-head"><span class="who">'+esc(c.name)+'</span><span class="when">'+esc(c.date)+'</span>'
-    + '<button class="cheer-act" data-cedit="'+ci+'">수정</button>'
-    + '<button class="cheer-act del" data-cdel="'+ci+'">삭제</button></div>'
-    + '<div class="txt">'+esc(c.text)+'</div></div>'
-  ).join('') || '<div class="empty" style="padding:18px">아직 응원이 없어요. 첫 응원을 남겨보세요 💪</div>';
-
   document.getElementById('dBody').innerHTML =
     pipe + info + link + memo
-    + '<div class="sec-label">응원 한마디 ♥</div>' + cheers
-    + '<div class="cheer-form">'
-    + '<input class="nm" id="cheerName" maxlength="12" placeholder="이름" value="'+esc(myName)+'"/>'
-    + '<input class="tx" id="cheerInput" maxlength="80" placeholder="예: 오늘도 파이팅!! 🍀"/>'
-    + '<button id="cheerBtn">남기기</button></div>'
     + '<div class="btnrow"><button class="btn danger" id="delBtn">삭제</button><button class="btn primary" id="editBtn">수정</button></div>';
 
-  document.getElementById('cheerBtn').addEventListener('click', async () => {
-    const txt = document.getElementById('cheerInput').value.trim();
-    if (!txt){ toast('내용을 입력해 주세요'); return; }
-    const nameInp = document.getElementById('cheerName').value.trim();
-    if (nameInp){ myName = nameInp.slice(0,12); local.set('jt:name', myName); }
-    const now = new Date();
-    a.cheers = a.cheers || [];
-    a.cheers.push({ name: myName || '익명', text: txt, date: (now.getMonth()+1)+'/'+now.getDate() });
-    a.updatedAt = Date.now();
-    await persist();
-    openDetail(id); render();
-    toast('응원을 남겼어요 ♥');
-  });
-  document.querySelectorAll('[data-cdel]').forEach(b => b.addEventListener('click', async () => {
-    a.cheers.splice(Number(b.dataset.cdel), 1);
-    a.updatedAt = Date.now();
-    await persist();
-    openDetail(id); render();
-    toast('응원을 삭제했어요');
-  }));
-  document.querySelectorAll('[data-cedit]').forEach(b => b.addEventListener('click', () => {
-    const ci = Number(b.dataset.cedit);
-    const box = document.querySelector('.cheer[data-ci="'+ci+'"]');
-    if (box.querySelector('.cheer-edit')) return;
-    const cur = a.cheers[ci].text;
-    box.querySelector('.txt').style.display = 'none';
-    box.insertAdjacentHTML('beforeend',
-      '<div class="cheer-edit"><input maxlength="80" value="'+esc(cur)+'"/><button>저장</button></div>');
-    const row = box.querySelector('.cheer-edit');
-    row.querySelector('input').focus();
-    row.querySelector('button').addEventListener('click', async () => {
-      const nv = row.querySelector('input').value.trim();
-      if (nv){ a.cheers[ci].text = nv; a.updatedAt = Date.now(); await persist(); }
-      openDetail(id);
-      if (nv) toast('응원을 수정했어요');
-    });
-  }));
   document.getElementById('delBtn').addEventListener('click', async function(){
     if (!this.classList.contains('arm')){
       this.classList.add('arm');
@@ -775,10 +793,111 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
     Object.assign(a, payload);
     toast('수정했어요');
   } else {
-    apps.unshift(Object.assign({ id:'a'+Math.random().toString(36).slice(2,9), cheers:[], createdAt:Date.now() }, payload));
+    apps.unshift(Object.assign({ id:'a'+Math.random().toString(36).slice(2,9), createdAt:Date.now() }, payload));
     toast('등록했어요 — 파이팅! 🍀');
   }
   await persist(); closeSheets(); render();
+});
+
+
+/* ---------- 메인 공용 응원 게시판 ---------- */
+function makeCheerId(){
+  return 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+}
+
+function renderGlobalCheers(){
+  const list = document.getElementById('globalCheerList');
+  const count = document.getElementById('globalCheerCount');
+  const nameInput = document.getElementById('globalCheerName');
+  if (!list || !count || !nameInput) return;
+
+  nameInput.value = myName;
+  count.textContent = cheers.length + '개';
+
+  const ordered = cheers
+    .map((c, index) => ({...c, _index:index}))
+    .sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0) || b._index - a._index);
+
+  list.innerHTML = ordered.length ? ordered.map(c =>
+    '<div class="cheer" data-cheer-id="'+esc(c.id)+'">'
+    + '<div class="cheer-head"><span class="who">'+esc(c.name || '익명')+'</span>'
+    + '<span class="when">'+esc(fmtCheerDateTime(c.createdAt, c.date || ''))+'</span>'
+    + '<button class="cheer-act" data-global-edit="'+esc(c.id)+'">수정</button>'
+    + '<button class="cheer-act del" data-global-del="'+esc(c.id)+'">삭제</button></div>'
+    + '<div class="txt">'+esc(c.text || '')+'</div></div>'
+  ).join('') : '<div class="cheer-empty">아직 응원이 없어요. 첫 응원을 남겨보세요 💪</div>';
+
+  document.querySelectorAll('[data-global-del]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.globalDel;
+      cheers = cheers.filter(c => c.id !== id);
+      await persist();
+      render();
+      toast('응원을 삭제했어요');
+    });
+  });
+
+  document.querySelectorAll('[data-global-edit]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.globalEdit;
+      const cheer = cheers.find(c => c.id === id);
+      const box = document.querySelector('.cheer[data-cheer-id="'+CSS.escape(id)+'"]');
+      if (!cheer || !box || box.querySelector('.cheer-edit')) return;
+
+      box.querySelector('.txt').style.display = 'none';
+      box.insertAdjacentHTML('beforeend',
+        '<div class="cheer-edit"><input maxlength="100" value="'+esc(cheer.text)+'"/><button>저장</button></div>');
+
+      const row = box.querySelector('.cheer-edit');
+      const input = row.querySelector('input');
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
+
+      row.querySelector('button').addEventListener('click', async () => {
+        const nextText = input.value.trim();
+        if (!nextText){ toast('내용을 입력해 주세요'); return; }
+        cheer.text = nextText;
+        await persist();
+        render();
+        toast('응원을 수정했어요');
+      });
+    });
+  });
+}
+
+async function addGlobalCheer(){
+  const nameInput = document.getElementById('globalCheerName');
+  const textInput = document.getElementById('globalCheerInput');
+  const txt = textInput.value.trim();
+  if (!txt){ toast('응원 내용을 입력해 주세요'); textInput.focus(); return; }
+
+  const enteredName = nameInput.value.trim();
+  if (enteredName){
+    myName = enteredName.slice(0,12);
+    local.set('jt:name', myName);
+  }
+
+  const createdAt = Date.now();
+  cheers.push({
+    id: makeCheerId(),
+    name: myName || '익명',
+    text: txt,
+    date: fmtCheerDateTime(createdAt),
+    createdAt
+  });
+
+  textInput.value = '';
+  await persist();
+  render();
+  toast('응원을 남겼어요 ♥');
+}
+
+document.getElementById('globalCheerBtn').addEventListener('click', addGlobalCheer);
+document.getElementById('globalCheerInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey){
+    e.preventDefault();
+    addGlobalCheer();
+  }
 });
 
 /* ---------- 시트 열기/닫기 ---------- */
