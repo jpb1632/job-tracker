@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<meta name="theme-color" content="#0c0e15"/>
+<title>취준 트래커</title>
+<style>
+:root{
+  --bg:#0c0e15; --surface:#151927; --surface2:#1b2033; --surface3:#10131f;
+  --border:#2b3150; --border-soft:#232945;
+  --text:#e9edff; --muted:#9aa3cf; --faint:#6d76a3;
+  --accent:#8b7cf8; --accent-soft:#2a2752; --accent-text:#c3b8ff;
+  --teal:#34d399; --yellow:#fbbf24; --red:#f87171; --blue:#7ab8ff; --orange:#fb923c;
+  --radius:16px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{font-size:16px}
+body{
+  margin:0;background:var(--bg);color:var(--text);
+  font-family:'Pretendard','Noto Sans KR',system-ui,-apple-system,sans-serif;
+  font-size:1rem;line-height:1.65;word-break:keep-all;
+  padding-bottom:calc(96px + env(safe-area-inset-bottom));
+}
+button,input,select,textarea{font-family:inherit}
+input,select,textarea{
+  width:100%;font-size:16px;border:1px solid var(--border);background:var(--surface3);
+  color:var(--text);border-radius:12px;padding:12px 13px;outline:none;
+}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+textarea{resize:vertical;min-height:76px;line-height:1.6}
+label{display:block;font-size:12.5px;font-weight:850;color:var(--muted);margin:14px 0 6px}
+label:first-child{margin-top:0}
+::selection{background:#3d3580;color:#fff}
+
+/* ---------- 헤더 ---------- */
+.top{position:sticky;top:0;z-index:20;background:rgba(12,14,21,.93);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--border-soft);padding-top:env(safe-area-inset-top)}
+.top-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 16px 8px;max-width:760px;margin:0 auto}
+.brand b{display:block;font-size:17px;font-weight:900;cursor:pointer}
+.brand b .pen{font-size:11px;color:var(--faint);font-weight:700;margin-left:4px}
+.brand span{display:block;font-size:11px;color:var(--faint);font-weight:650}
+.top-actions{display:flex;gap:6px}
+.iconbtn{
+  min-width:42px;height:42px;border-radius:12px;border:1px solid var(--border);
+  background:var(--surface2);color:var(--muted);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:850;padding:0 11px;gap:6px;
+}
+.iconbtn:active{transform:scale(.95)}
+.iconbtn svg{width:18px;height:18px}
+.iconbtn.spin svg{animation:rot 1s linear infinite}
+@keyframes rot{to{transform:rotate(360deg)}}
+
+/* 필터 칩 */
+.chips{display:flex;gap:6px;overflow-x:auto;padding:4px 16px 10px;scrollbar-width:none;max-width:760px;margin:0 auto;-webkit-overflow-scrolling:touch}
+.chips::-webkit-scrollbar{display:none}
+.chip{
+  flex-shrink:0;border:1px solid var(--border);background:var(--surface3);color:var(--muted);
+  border-radius:999px;padding:8px 14px;font-size:13px;font-weight:800;cursor:pointer;min-height:38px;
+  display:flex;align-items:center;gap:6px;
+}
+.chip b{font-size:12px;color:var(--faint)}
+.chip.active{background:var(--accent-soft);border-color:var(--accent);color:#e6e0ff}
+.chip.active b{color:var(--accent-text)}
+
+/* ---------- 본문 ---------- */
+.wrap{max-width:760px;margin:0 auto;padding:14px 16px 30px}
+
+/* 대시보드 */
+.dash{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.dbox{background:var(--surface);border:1px solid var(--border-soft);border-radius:14px;padding:12px 6px;text-align:center}
+.dbox b{display:block;font-size:21px;font-weight:900}
+.dbox span{font-size:11px;color:var(--muted);font-weight:750}
+.dbox.hot b{color:var(--yellow)}
+.dbox.good b{color:var(--teal)}
+.dbox.acc b{color:var(--accent-text)}
+
+.sortline{display:flex;justify-content:space-between;align-items:center;margin:0 2px 10px}
+.sortline .cnt{font-size:12.5px;color:var(--faint);font-weight:750}
+.sortbtn{background:none;border:0;color:var(--muted);font-size:12.5px;font-weight:850;cursor:pointer;display:flex;align-items:center;gap:4px;padding:6px}
+
+/* 지원 카드 */
+.list{display:grid;gap:10px}
+.appcard{
+  background:var(--surface);border:1px solid var(--border-soft);border-radius:var(--radius);
+  padding:15px 16px;cursor:pointer;position:relative;overflow:hidden;
+}
+.appcard:active{transform:scale(.985)}
+.appcard .edge{position:absolute;left:0;top:0;bottom:0;width:4px}
+.ac-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.ac-company{font-size:16.5px;font-weight:900;line-height:1.4}
+.ac-sub{font-size:12.5px;color:var(--muted);margin-top:2px;font-weight:650}
+.dday{
+  flex-shrink:0;font-size:12px;font-weight:900;border-radius:9px;padding:5px 9px;
+  background:var(--surface3);border:1px solid var(--border);color:var(--muted);
+}
+.dday.urgent{background:#2c0f12;border-color:#a53b44;color:#ff9ba3}
+.dday.soon{background:#2a1e06;border-color:#a5760f;color:#ffd784}
+.dday.over{opacity:.6}
+.ac-badges{display:flex;gap:6px;flex-wrap:nowrap;align-items:center;overflow:hidden;margin-top:11px}
+.bdg{font-size:11.5px;font-weight:850;border-radius:999px;padding:4px 10px;border:1px solid var(--border);background:var(--surface3);color:#bcc5ef;white-space:nowrap;flex-shrink:0}
+.bdg.stage-0{border-color:#2f66ad;color:#a8cfff;background:#0a1a2e}
+.bdg.stage-1{border-color:#3d6bd6;color:#bcd2ff;background:#0e1b3a}
+.bdg.stage-2{border-color:#8a6118;color:#ffd784;background:#221506}
+.bdg.stage-3{border-color:#9a5cc9;color:#e2c6ff;background:#1d0f2c}
+.bdg.stage-4{border-color:#1f8a5f;color:#7df0bd;background:#071d16}
+.bdg.stage-5{border-color:#a53b44;color:#ff9ba3;background:#230c0f}
+.bdg.stage-6{border-color:#3a405e;color:#8b93b8;background:#12151f}
+.bdg.viewed{border-color:#a86a24;color:#ffc57e;background:#231303}
+.bdg.role{border-color:#3a4270;color:#c3b8ff;background:#161230}
+.ac-meta{display:flex;gap:12px;margin-top:10px;font-size:12px;color:var(--faint);font-weight:650;flex-wrap:wrap}
+.ac-meta svg{width:13px;height:13px;vertical-align:-2px;margin-right:3px}
+.infobtn{
+  flex-shrink:0;margin-left:auto;display:flex;align-items:center;gap:4px;
+  border:1px solid var(--accent);background:var(--accent-soft);color:#dcd6ff;
+  border-radius:999px;padding:5px 11px;font-size:11.5px;font-weight:850;cursor:pointer;min-height:30px;
+}
+.infobtn:active{transform:scale(.94)}
+.infobtn svg{width:12px;height:12px}
+.cheer-cnt{color:#ff9bc0;font-weight:850}
+
+.empty{background:var(--surface3);border:1px dashed var(--border);border-radius:var(--radius);padding:34px 18px;text-align:center;color:var(--muted);font-size:14.5px;line-height:1.9}
+
+/* FAB */
+.fab{
+  position:fixed;right:16px;bottom:calc(20px + env(safe-area-inset-bottom));z-index:25;
+  min-height:54px;border-radius:999px;border:0;background:var(--accent);color:#fff;
+  font-size:15px;font-weight:900;padding:0 22px 0 16px;cursor:pointer;
+  display:flex;align-items:center;gap:8px;box-shadow:0 8px 26px rgba(80,60,220,.45);
+}
+.fab:active{transform:scale(.95)}
+.fab svg{width:20px;height:20px}
+
+/* ---------- 시트 (상세/폼) ---------- */
+.sheet-bg{position:fixed;inset:0;background:rgba(5,6,10,.6);backdrop-filter:blur(3px);z-index:40;display:none}
+.sheet-bg.open{display:block}
+.sheet{
+  position:fixed;left:0;right:0;bottom:0;z-index:50;max-height:88vh;max-height:88dvh;
+  background:var(--surface);border:1px solid var(--border);border-bottom:0;
+  border-radius:22px 22px 0 0;display:none;flex-direction:column;
+  max-width:760px;margin:0 auto;
+}
+.sheet.open{display:flex}
+.sheet-head{padding:10px 18px 12px;border-bottom:1px solid var(--border-soft);flex-shrink:0}
+.grab{width:42px;height:5px;border-radius:99px;background:var(--border);margin:4px auto 12px}
+.sheet-title-row{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.sheet-title{font-size:19px;font-weight:900;line-height:1.35}
+.sheet-sub{font-size:12.5px;color:var(--muted);margin-top:2px}
+.xbtn{flex-shrink:0;width:38px;height:38px;border-radius:11px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);cursor:pointer;font-size:16px;font-weight:900}
+.sheet-body{overflow-y:auto;padding:16px 18px calc(20px + env(safe-area-inset-bottom));-webkit-overflow-scrolling:touch}
+
+/* 상세: 파이프라인 */
+.pipe{display:flex;align-items:center;margin:6px 0 18px}
+.pipe .node{display:flex;flex-direction:column;align-items:center;gap:5px;flex:1;position:relative}
+.pipe .dot{width:13px;height:13px;border-radius:50%;background:var(--surface2);border:2px solid var(--border);z-index:1}
+.pipe .node.on .dot{background:var(--accent);border-color:var(--accent)}
+.pipe .node.now .dot{box-shadow:0 0 0 4px var(--accent-soft)}
+.pipe .node span{font-size:9.5px;font-weight:850;color:var(--faint);white-space:nowrap}
+.pipe .node.on span{color:var(--accent-text)}
+.pipe .node:not(:last-child):after{content:'';position:absolute;top:6px;left:calc(50% + 8px);right:calc(-50% + 8px);height:2px;background:var(--border-soft)}
+.pipe .node.on:not(:last-child):after{background:var(--accent)}
+.pipe.final-good .node.on .dot{background:var(--teal);border-color:var(--teal)}
+.pipe.final-bad .node.on .dot{background:var(--red);border-color:var(--red)}
+
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.info{background:var(--surface3);border:1px solid var(--border-soft);border-radius:12px;padding:10px 12px}
+.info em{display:block;font-style:normal;font-size:11px;font-weight:850;color:var(--faint)}
+.info b{font-size:14px;font-weight:800}
+.info.wide{grid-column:1/-1}
+
+.memo-view{background:var(--surface3);border:1px solid var(--border-soft);border-radius:12px;padding:12px 14px;font-size:14px;color:#cdd4f5;white-space:pre-wrap;line-height:1.75;margin-bottom:14px}
+.sec-label{font-size:12.5px;font-weight:900;color:var(--muted);margin:18px 0 8px;letter-spacing:.3px}
+
+/* 응원 */
+.cheer{background:#1d1220;border:1px solid #4d2a44;border-radius:12px;padding:10px 13px;margin-bottom:8px}
+.cheer .who{font-size:11.5px;font-weight:900;color:#ff9bc0}
+.cheer .txt{font-size:14px;line-height:1.7}
+.cheer .when{font-size:10.5px;color:var(--faint)}
+.cheer-head{display:flex;align-items:center;gap:6px}
+.cheer-head .who{margin-right:auto}
+.cheer-act{background:none;border:0;color:var(--faint);font-size:11px;font-weight:850;cursor:pointer;padding:4px 6px}
+.cheer-act.del{color:#ff9ba3}
+.cheer-edit{display:flex;gap:6px;margin-top:6px}
+.cheer-edit input{flex:1;padding:9px 11px}
+.cheer-edit button{flex-shrink:0;min-width:56px;border-radius:10px;border:0;background:#c94f86;color:#fff;font-weight:900;font-size:13px;cursor:pointer}
+.cheer-form{display:flex;gap:7px;margin-top:10px}
+.cheer-form .nm{width:86px;flex-shrink:0;padding:12px 10px}
+.cheer-form .tx{flex:1;min-width:0}
+.cheer-form button{flex-shrink:0;min-width:68px;border-radius:12px;border:0;background:#c94f86;color:#fff;font-weight:900;font-size:14px;cursor:pointer}
+
+.btnrow{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:20px}
+.btn{
+  min-height:50px;border-radius:13px;border:1px solid var(--border);background:var(--surface2);
+  color:var(--text);font-size:15px;font-weight:850;cursor:pointer;
+}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.danger{border-color:#7c2f36;color:#ff9ba3;background:#1c0d0f}
+.btn.danger.arm{background:#f87171;border-color:#f87171;color:#fff}
+.title-edit{display:none;gap:8px;padding:0 16px 10px;max-width:760px;margin:0 auto}
+.title-edit.open{display:flex}
+.title-edit input{flex:1}
+.title-edit button{flex-shrink:0;min-width:64px;border-radius:12px;border:0;background:var(--accent);color:#fff;font-weight:900;font-size:14px;cursor:pointer}
+.btn:active{transform:scale(.97)}
+.form-grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}
+
+/* 토스트 */
+.toast{
+  position:fixed;left:50%;transform:translateX(-50%);bottom:calc(88px + env(safe-area-inset-bottom));
+  background:#232945;border:1px solid var(--border);color:var(--text);font-size:13.5px;font-weight:800;
+  border-radius:999px;padding:11px 20px;z-index:60;opacity:0;pointer-events:none;transition:opacity .25s;
+  max-width:86vw;text-align:center;
+}
+.toast.show{opacity:1}
+
+.sync-note{font-size:11.5px;color:var(--faint);text-align:center;margin-top:20px;line-height:1.8}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-row">
+    <div class="brand"><b id="appTitle">💼 취준 트래커 <span class="pen">✎</span></b><span id="lastSync">불러오는 중…</span></div>
+    <div class="top-actions">
+      <button class="iconbtn" id="shareBtn" aria-label="공유 링크 복사">공유</button>
+      <button class="iconbtn" id="syncBtn" aria-label="새로고침">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 4v5h-5"/></svg>
+      </button>
+    </div>
+  </div>
+  <div class="title-edit" id="titleEdit">
+    <input id="titleInput" maxlength="16" placeholder="앱 이름"/>
+    <button id="titleSave">저장</button>
+  </div>
+  <div class="chips" id="chips"></div>
+</header>
+
+<main class="wrap">
+  <div class="dash" id="dash"></div>
+  <div class="sortline">
+    <span class="cnt" id="listCnt"></span>
+    <button class="sortbtn" id="sortBtn"></button>
+  </div>
+  <div class="list" id="list"></div>
+  <p class="sync-note" id="storageNote"></p>
+</main>
+
+<button class="fab" id="addBtn">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+  지원 추가
+</button>
+
+<div class="sheet-bg" id="sheetBg"></div>
+
+<!-- 상세 시트 -->
+<div class="sheet" id="detailSheet">
+  <div class="sheet-head">
+    <div class="grab"></div>
+    <div class="sheet-title-row">
+      <div><div class="sheet-title" id="dTitle"></div><div class="sheet-sub" id="dSub"></div></div>
+      <button class="xbtn" data-close="1">✕</button>
+    </div>
+  </div>
+  <div class="sheet-body" id="dBody"></div>
+</div>
+
+<!-- 등록/수정 시트 -->
+<div class="sheet" id="formSheet">
+  <div class="sheet-head">
+    <div class="grab"></div>
+    <div class="sheet-title-row">
+      <div class="sheet-title" id="fTitle">지원 추가</div>
+      <button class="xbtn" data-close="1">✕</button>
+    </div>
+  </div>
+  <div class="sheet-body">
+    <label>회사명 *</label><input id="f_company" placeholder="(주)회사명"/>
+    <div class="form-grid2">
+      <div><label>플랫폼</label>
+        <select id="f_platform"><option>사람인</option><option>잡코리아</option><option>원티드</option><option>인크루트</option><option>링크드인</option><option>회사 홈페이지</option><option>기타</option></select></div>
+      <div><label>직종</label><input id="f_role" placeholder="SSO, NAC/EDR, 기술지원…"/></div>
+    </div>
+    <label>근무 지역</label><input id="f_region" placeholder="서울 서초구"/>
+    <div class="form-grid2">
+      <div><label>서류 제출일</label><input id="f_submit" type="date"/></div>
+      <div><label>마감일</label><input id="f_deadline" type="date"/></div>
+    </div>
+    <div class="form-grid2">
+      <div><label>진행 단계</label><select id="f_stage"></select></div>
+      <div><label>서류 상태</label><select id="f_viewed"><option value="0">미열람</option><option value="1">열람</option></select></div>
+    </div>
+    <div class="form-grid2">
+      <div><label>서류 열람일</label><input id="f_viewedDate" type="date"/></div>
+      <div><label>면접 일자</label><input id="f_interview" type="datetime-local"/></div>
+    </div>
+    <label>채용공고 링크</label><input id="f_link" type="url" placeholder="https://…"/>
+    <label>회사 정보 / 메모</label><textarea id="f_memo" placeholder="회사 규모, 연봉 정보, 준비할 것, 면접 후기 등 자유롭게"></textarea>
+    <div class="btnrow">
+      <button class="btn" data-close="1">취소</button>
+      <button class="btn primary" id="saveBtn">저장</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js';
+import { getDatabase, ref, get, set, onValue, runTransaction } from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-database.js';
+
+'use strict';
+/* ================= Firebase 실시간 저장소 =================
+   - Claude 계정/로그인 불필요
+   - URL의 #room=... 값이 같은 사람끼리 동일 데이터 사용
+   - Firebase 설정값은 아래 firebaseConfig에 한 번만 입력 */
+const firebaseConfig = {
+  apiKey: "AIzaSyCv5WXLMLarBwZTmTApx4ScvxvYBDhlT3U",
+  authDomain: "jpb-job-tracker.firebaseapp.com",
+  databaseURL: "https://jpb-job-tracker-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "jpb-job-tracker",
+  storageBucket: "jpb-job-tracker.firebasestorage.app",
+  messagingSenderId: "544364055366",
+  appId: "1:544364055366:web:620e45d9c13ed2f34df347"
+};
+
+const local = (() => {
+  let mem = {}; let ok = true;
+  try { localStorage.setItem('__t','1'); localStorage.removeItem('__t'); } catch(e){ ok = false; }
+  return {
+    get(k){ try { return ok ? localStorage.getItem(k) : (mem[k] ?? null); } catch(e){ return mem[k] ?? null; } },
+    set(k,v){ mem[k]=v; if(ok){ try{ localStorage.setItem(k,v); }catch(e){} } }
+  };
+})();
+
+function getRoomId(){
+  const m = location.hash.match(/^#room=([A-Za-z0-9_-]{20,100})$/);
+  return m ? m[1] : '';
+}
+const ROOM_ID = getRoomId();
+const REQUIRED_CONFIG_KEYS = ['apiKey','authDomain','databaseURL','projectId','appId'];
+const CONFIG_READY = REQUIRED_CONFIG_KEYS.every(k => firebaseConfig[k] && !String(firebaseConfig[k]).startsWith('여기에_'));
+let db = null;
+let stateRef = null;
+let realtimeUnsubscribe = null;
+let connectionState = 'loading'; // loading | connected | config | room | error
+let lastRaw = '';
+let lastError = '';
+
+const STAGES = ['서류 지원','서류 통과','면접 예정','면접 완료','최종 합격','불합격','지원 마감'];
+const seed = () => {
+  const t = '2026-07-10';
+  const mk = (company, role, region, deadline) => ({
+    id: 'a'+Math.random().toString(36).slice(2,9),
+    company, platform:'사람인', role, region,
+    submitDate:t, deadline, stage:0, viewed:0, viewedDate:'', interviewDate:'',
+    link:'', memo:'', cheers:[], createdAt:Date.now(), updatedAt:Date.now()
+  });
+  const arr = [
+    mk('(주)키미디에스','SSO','서울 서초구','2026-07-22'),
+    mk('펜타링크(주)','SSO','서울 영등포구','2026-08-02'),
+    mk('(주)론스택','NAC/EDR','안양 동안구','2026-07-21'),
+    mk('워터월시스템즈(주)','기술지원','서울 금천구 가산동','2026-08-01'),
+    mk('(주)구루엔','EndPoint','서울 금천구','2026-07-22'),
+  ];
+  arr[1].viewed = 1; arr[1].viewedDate = t;
+  return arr;
+};
+
+let apps = [];
+let appTitle = '취준 트래커';
+let filter = 'all';
+let sortMode = 'deadline'; // deadline | recent
+let myName = local.get('jt:name') || '';
+
+/* ---------- 로드/저장 ---------- */
+function applyRemote(data, showToast=false){
+  if (!data || typeof data !== 'object') return;
+  const raw = JSON.stringify(data);
+  const changed = lastRaw && raw !== lastRaw;
+  apps = Array.isArray(data.apps) ? data.apps : [];
+  appTitle = data.title || '취준 트래커';
+  lastRaw = raw;
+  renderTitle();
+  render();
+  setSyncLabel();
+  if (showToast) toast(changed ? '새 업데이트를 불러왔어요' : '이미 최신 상태예요');
+}
+
+async function initRealtime(){
+  if (!CONFIG_READY){
+    connectionState = 'config';
+    apps = seed();
+    renderTitle(); render(); setSyncLabel();
+    return;
+  }
+  if (!ROOM_ID){
+    connectionState = 'room';
+    apps = [];
+    renderTitle(); render(); setSyncLabel();
+    return;
+  }
+  try {
+    const firebaseApp = initializeApp(firebaseConfig);
+    db = getDatabase(firebaseApp);
+    stateRef = ref(db, 'rooms/' + ROOM_ID + '/state');
+
+    // 첫 접속일 때만 기본 데이터를 생성합니다. 기존 데이터는 건드리지 않습니다.
+    await runTransaction(stateRef, current => {
+      if (current !== null) return current;
+      return { title: '취준 트래커', apps: seed(), updatedAt: Date.now() };
+    }, { applyLocally: false });
+
+    realtimeUnsubscribe = onValue(stateRef, snapshot => {
+      connectionState = 'connected';
+      applyRemote(snapshot.val() || {title:'취준 트래커', apps:[]});
+    }, error => {
+      connectionState = 'error';
+      lastError = error?.message || String(error);
+      setSyncLabel();
+      toast('실시간 연결 실패 — Firebase 규칙을 확인하세요');
+    });
+  } catch(error){
+    connectionState = 'error';
+    lastError = error?.message || String(error);
+    apps = seed();
+    renderTitle(); render(); setSyncLabel();
+  }
+}
+
+async function load(showToast=false){
+  if (!stateRef){
+    toast(connectionState === 'config' ? 'Firebase 설정값을 먼저 입력하세요' : '실시간 저장소에 연결되지 않았어요');
+    return;
+  }
+  try {
+    const snapshot = await get(stateRef);
+    applyRemote(snapshot.val(), showToast);
+  } catch(error){
+    connectionState = 'error';
+    lastError = error?.message || String(error);
+    setSyncLabel();
+    toast('불러오기 실패 — Firebase 규칙을 확인하세요');
+  }
+}
+
+async function persist(){
+  if (!stateRef){
+    toast('저장할 수 없습니다 — Firebase 연결을 먼저 완료하세요');
+    throw new Error('Firebase not connected');
+  }
+  const data = { title: appTitle, apps, updatedAt: Date.now() };
+  try {
+    await set(stateRef, data);
+    lastRaw = JSON.stringify(data);
+    connectionState = 'connected';
+    setSyncLabel();
+  } catch(error){
+    connectionState = 'error';
+    lastError = error?.message || String(error);
+    setSyncLabel();
+    toast('공유 저장 실패 — Firebase 규칙을 확인하세요');
+    throw error;
+  }
+}
+
+function setSyncLabel(){
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2,'0'), mm = String(now.getMinutes()).padStart(2,'0');
+  const last = document.getElementById('lastSync');
+  const note = document.getElementById('storageNote');
+  if (connectionState === 'connected'){
+    last.textContent = '실시간 동기화 연결됨 · ' + hh+':'+mm;
+    note.innerHTML = 'Firebase 실시간 동기화가 연결되어 있습니다.<br/>주소 전체(#room 포함)를 공유하면 로그인 없이 같은 데이터를 바로 볼 수 있어요.';
+  } else if (connectionState === 'config'){
+    last.textContent = 'Firebase 설정 필요';
+    note.innerHTML = 'index.html의 firebaseConfig에 Firebase 웹 앱 설정값을 붙여넣어야 합니다.';
+  } else if (connectionState === 'room'){
+    last.textContent = '공유방 주소가 없습니다';
+    note.innerHTML = '주소 끝에 <b>#room=공유방코드</b>가 필요합니다. 설정 가이드의 완성 주소를 사용하세요.';
+  } else if (connectionState === 'error'){
+    last.textContent = '연결 실패';
+    note.innerHTML = 'Firebase 연결 또는 보안 규칙 오류입니다.<br/><small>'+esc(lastError)+'</small>';
+  } else {
+    last.textContent = '실시간 저장소 연결 중…';
+    note.innerHTML = 'Firebase에 연결하고 있습니다.';
+  }
+}
+
+/* ---------- 앱 이름 ---------- */
+function renderTitle(){
+  document.getElementById('appTitle').innerHTML = '💼 ' + esc(appTitle) + ' <span class="pen">✎</span>';
+  document.title = appTitle;
+}
+document.getElementById('appTitle').addEventListener('click', () => {
+  const row = document.getElementById('titleEdit');
+  const open = row.classList.toggle('open');
+  if (open){
+    const inp = document.getElementById('titleInput');
+    inp.value = appTitle; inp.focus();
+  }
+});
+document.getElementById('titleSave').addEventListener('click', async () => {
+  const n = document.getElementById('titleInput').value.trim();
+  if (n){
+    appTitle = n.slice(0, 16);
+    renderTitle();
+    await persist();
+    toast('이름을 바꿨어요: ' + appTitle);
+  }
+  document.getElementById('titleEdit').classList.remove('open');
+});
+
+/* ---------- 링크 유틸 ---------- */
+function naverUrl(name){ return 'https://search.naver.com/search.naver?query=' + encodeURIComponent(name); }
+function bestLink(a){ return a.link && a.link.trim() ? a.link.trim() : naverUrl(a.company); }
+function openUrl(u){ try { window.open(u, '_blank', 'noopener'); } catch(e){ location.href = u; } }
+
+/* ---------- 유틸 ---------- */
+function esc(s){ return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function fmtDate(d){
+  if(!d) return '—';
+  const [y,m,dd] = d.split('-');
+  return y+'년 '+Number(m)+'월 '+Number(dd)+'일';
+}
+function fmtDT(d){
+  if(!d) return '—';
+  const dt = new Date(d);
+  if (isNaN(dt)) return d;
+  const days = ['일','월','화','수','목','금','토'];
+  return (dt.getMonth()+1)+'/'+dt.getDate()+'('+days[dt.getDay()]+') '+String(dt.getHours()).padStart(2,'0')+':'+String(dt.getMinutes()).padStart(2,'0');
+}
+function dday(deadline){
+  if(!deadline) return null;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const d = new Date(deadline+'T00:00:00');
+  return Math.round((d - today)/86400000);
+}
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._h); t._h = setTimeout(()=>t.classList.remove('show'), 2200);
+}
+
+
+/* ---------- 필터/정렬 ---------- */
+const FILTERS = [
+  ['all','전체', a => true],
+  ['active','진행중', a => a.stage <= 3],
+  ['viewed','열람됨', a => a.viewed === 1],
+  ['interview','면접', a => a.stage === 2 || a.stage === 3],
+  ['done','종료', a => a.stage >= 4],
+];
+function filtered(){
+  const f = FILTERS.find(x => x[0] === filter)[2];
+  const arr = apps.filter(f);
+  if (sortMode === 'deadline'){
+    arr.sort((a,b) => {
+      const da = a.deadline || '9999', db = b.deadline || '9999';
+      const ea = a.stage >= 4 ? 1 : 0, eb = b.stage >= 4 ? 1 : 0; // 종료 건은 뒤로
+      return ea - eb || da.localeCompare(db);
+    });
+  } else {
+    arr.sort((a,b) => (b.createdAt||0) - (a.createdAt||0));
+  }
+  return arr;
+}
+
+/* ---------- 렌더 ---------- */
+function render(){
+  // 대시보드
+  const total = apps.length;
+  const active = apps.filter(a=>a.stage<=3).length;
+  const interview = apps.filter(a=>a.stage===2||a.stage===3).length;
+  const pass = apps.filter(a=>a.stage===4).length;
+  document.getElementById('dash').innerHTML =
+    '<div class="dbox"><b>'+total+'</b><span>전체 지원</span></div>'
+    +'<div class="dbox acc"><b>'+active+'</b><span>진행 중</span></div>'
+    +'<div class="dbox hot"><b>'+interview+'</b><span>면접</span></div>'
+    +'<div class="dbox good"><b>'+pass+'</b><span>최종 합격</span></div>';
+
+  // 칩
+  document.getElementById('chips').innerHTML = FILTERS.map(([k,label,fn]) =>
+    '<button class="chip '+(filter===k?'active':'')+'" data-f="'+k+'">'+label+' <b>'+apps.filter(fn).length+'</b></button>'
+  ).join('');
+  document.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => { filter = c.dataset.f; render(); }));
+
+  // 정렬
+  document.getElementById('sortBtn').textContent = sortMode === 'deadline' ? '마감 임박순 ⇅' : '최신 등록순 ⇅';
+
+  // 리스트
+  const arr = filtered();
+  document.getElementById('listCnt').textContent = arr.length + '건';
+  const edgeColor = ['#3d6bd6','#3d6bd6','#fbbf24','#9a5cc9','#34d399','#f87171','#3a405e'];
+  document.getElementById('list').innerHTML = arr.length ? arr.map(a => {
+    const dd = dday(a.deadline);
+    let ddHtml = '';
+    if (dd !== null){
+      if (a.stage >= 4 || dd < 0) ddHtml = '<span class="dday over">'+(dd<0?'마감':'종료')+'</span>';
+      else if (dd === 0) ddHtml = '<span class="dday urgent">오늘 마감</span>';
+      else if (dd <= 3) ddHtml = '<span class="dday urgent">D-'+dd+'</span>';
+      else if (dd <= 7) ddHtml = '<span class="dday soon">D-'+dd+'</span>';
+      else ddHtml = '<span class="dday">D-'+dd+'</span>';
+    }
+    const cheers = (a.cheers||[]).length;
+    return '<div class="appcard" data-id="'+a.id+'">'
+      + '<div class="edge" style="background:'+edgeColor[a.stage]+'"></div>'
+      + '<div class="ac-top"><div><div class="ac-company">'+esc(a.company)+'</div>'
+      + '<div class="ac-sub">'+esc(a.platform)+' · '+esc(a.region||'지역 미입력')+'</div></div>'+ddHtml+'</div>'
+      + '<div class="ac-badges">'
+      + (a.role ? '<span class="bdg role">'+esc(a.role)+'</span>' : '')
+      + '<span class="bdg stage-'+a.stage+'">● '+STAGES[a.stage]+'</span>'
+      + '<span class="bdg '+(a.viewed?'viewed':'')+'">'+(a.viewed?'열람':'미열람')+'</span>'
+      + '<button class="infobtn" data-link="'+a.id+'">회사정보 '
+      + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M10 14 21 3M21 3h-6M21 3v6M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>'
+      + '</button></div>'
+      + '<div class="ac-meta">'
+      + '<span>제출 '+fmtDate(a.submitDate).replace('2026년 ','')+'</span>'
+      + (a.interviewDate ? '<span>🗓 면접 '+fmtDT(a.interviewDate)+'</span>' : '')
+      + (cheers ? '<span class="cheer-cnt">♥ 응원 '+cheers+'</span>' : '')
+      + '</div></div>';
+  }).join('')
+  : '<div class="empty">'+(filter==='all' ? '아직 등록된 지원이 없어요.<br/>오른쪽 아래 「지원 추가」로 시작하세요!' : '이 조건에 해당하는 지원이 없어요.')+'</div>';
+
+  document.querySelectorAll('.appcard').forEach(c => c.addEventListener('click', () => openDetail(c.dataset.id)));
+  document.querySelectorAll('.infobtn').forEach(b => b.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const a = apps.find(x => x.id === b.dataset.link);
+    if (a) openUrl(bestLink(a));
+  }));
+}
+
+/* ---------- 상세 시트 ---------- */
+let currentId = null;
+function openDetail(id){
+  const a = apps.find(x => x.id === id);
+  if(!a) return;
+  currentId = id;
+  document.getElementById('dTitle').textContent = a.company;
+  document.getElementById('dSub').textContent = a.platform + (a.role ? ' · '+a.role : '') + (a.region ? ' · '+a.region : '');
+
+  // 파이프라인: 합/불/마감은 4번째 노드에 결과로 표시
+  const isBad = a.stage === 5 || a.stage === 6;
+  const isGood = a.stage === 4;
+  const nodes = ['서류 지원','서류 통과','면접','결과'];
+  const nodeOn = a.stage === 0 ? 0 : a.stage === 1 ? 1 : (a.stage === 2 || a.stage === 3) ? 2 : 3;
+  const pipe = '<div class="pipe '+(isGood?'final-good':isBad?'final-bad':'')+'">'
+    + nodes.map((n,i) => '<div class="node '+(i<=nodeOn?'on':'')+(i===nodeOn?' now':'')+'"><div class="dot"></div><span>'
+      + (i===3 && a.stage>=4 ? STAGES[a.stage] : n)+'</span></div>').join('')
+    + '</div>';
+
+  const dd = dday(a.deadline);
+  const info = '<div class="info-grid">'
+    + '<div class="info"><em>서류 제출일</em><b>'+fmtDate(a.submitDate)+'</b></div>'
+    + '<div class="info"><em>마감일'+(dd!==null && dd>=0 && a.stage<4 ? ' (D-'+dd+')':'')+'</em><b>'+fmtDate(a.deadline)+'</b></div>'
+    + '<div class="info"><em>서류 상태</em><b>'+(a.viewed?'열람됨':'미열람')+'</b></div>'
+    + '<div class="info"><em>서류 열람일</em><b>'+fmtDate(a.viewedDate)+'</b></div>'
+    + '<div class="info wide"><em>면접 일자</em><b>'+(a.interviewDate?fmtDT(a.interviewDate):'미정')+'</b></div>'
+    + '</div>';
+
+  const link = '';
+  const memo = a.memo ? '<div class="sec-label">회사 정보 · 메모</div><div class="memo-view">'+esc(a.memo)+'</div>' : '';
+
+  const cheers = (a.cheers||[]).map((c,ci) =>
+    '<div class="cheer" data-ci="'+ci+'">'
+    + '<div class="cheer-head"><span class="who">'+esc(c.name)+'</span><span class="when">'+esc(c.date)+'</span>'
+    + '<button class="cheer-act" data-cedit="'+ci+'">수정</button>'
+    + '<button class="cheer-act del" data-cdel="'+ci+'">삭제</button></div>'
+    + '<div class="txt">'+esc(c.text)+'</div></div>'
+  ).join('') || '<div class="empty" style="padding:18px">아직 응원이 없어요. 첫 응원을 남겨보세요 💪</div>';
+
+  document.getElementById('dBody').innerHTML =
+    pipe + info + link + memo
+    + '<div class="sec-label">응원 한마디 ♥</div>' + cheers
+    + '<div class="cheer-form">'
+    + '<input class="nm" id="cheerName" maxlength="12" placeholder="이름" value="'+esc(myName)+'"/>'
+    + '<input class="tx" id="cheerInput" maxlength="80" placeholder="예: 오늘도 파이팅!! 🍀"/>'
+    + '<button id="cheerBtn">남기기</button></div>'
+    + '<div class="btnrow"><button class="btn danger" id="delBtn">삭제</button><button class="btn primary" id="editBtn">수정</button></div>';
+
+  document.getElementById('cheerBtn').addEventListener('click', async () => {
+    const txt = document.getElementById('cheerInput').value.trim();
+    if (!txt){ toast('내용을 입력해 주세요'); return; }
+    const nameInp = document.getElementById('cheerName').value.trim();
+    if (nameInp){ myName = nameInp.slice(0,12); local.set('jt:name', myName); }
+    const now = new Date();
+    a.cheers = a.cheers || [];
+    a.cheers.push({ name: myName || '익명', text: txt, date: (now.getMonth()+1)+'/'+now.getDate() });
+    a.updatedAt = Date.now();
+    await persist();
+    openDetail(id); render();
+    toast('응원을 남겼어요 ♥');
+  });
+  document.querySelectorAll('[data-cdel]').forEach(b => b.addEventListener('click', async () => {
+    a.cheers.splice(Number(b.dataset.cdel), 1);
+    a.updatedAt = Date.now();
+    await persist();
+    openDetail(id); render();
+    toast('응원을 삭제했어요');
+  }));
+  document.querySelectorAll('[data-cedit]').forEach(b => b.addEventListener('click', () => {
+    const ci = Number(b.dataset.cedit);
+    const box = document.querySelector('.cheer[data-ci="'+ci+'"]');
+    if (box.querySelector('.cheer-edit')) return;
+    const cur = a.cheers[ci].text;
+    box.querySelector('.txt').style.display = 'none';
+    box.insertAdjacentHTML('beforeend',
+      '<div class="cheer-edit"><input maxlength="80" value="'+esc(cur)+'"/><button>저장</button></div>');
+    const row = box.querySelector('.cheer-edit');
+    row.querySelector('input').focus();
+    row.querySelector('button').addEventListener('click', async () => {
+      const nv = row.querySelector('input').value.trim();
+      if (nv){ a.cheers[ci].text = nv; a.updatedAt = Date.now(); await persist(); }
+      openDetail(id);
+      if (nv) toast('응원을 수정했어요');
+    });
+  }));
+  document.getElementById('delBtn').addEventListener('click', async function(){
+    if (!this.classList.contains('arm')){
+      this.classList.add('arm');
+      this.textContent = '한 번 더 누르면 삭제돼요';
+      setTimeout(() => { this.classList.remove('arm'); this.textContent = '삭제'; }, 3000);
+      return;
+    }
+    apps = apps.filter(x => x.id !== id);
+    await persist(); closeSheets(); render(); toast('삭제했어요');
+  });
+  document.getElementById('editBtn').addEventListener('click', () => { closeSheets(); openForm(id); });
+
+  openSheet('detailSheet');
+}
+
+/* ---------- 등록/수정 폼 ---------- */
+document.getElementById('f_stage').innerHTML = STAGES.map((s,i)=>'<option value="'+i+'">'+s+'</option>').join('');
+let editingId = null;
+function openForm(id){
+  editingId = id || null;
+  const a = id ? apps.find(x=>x.id===id) : null;
+  document.getElementById('fTitle').textContent = a ? '지원 수정' : '지원 추가';
+  const v = (k, def='') => a ? (a[k] ?? def) : def;
+  document.getElementById('f_company').value = v('company');
+  document.getElementById('f_platform').value = v('platform','사람인');
+  document.getElementById('f_role').value = v('role');
+  document.getElementById('f_region').value = v('region');
+  document.getElementById('f_submit').value = v('submitDate', new Date().toISOString().slice(0,10));
+  document.getElementById('f_deadline').value = v('deadline');
+  document.getElementById('f_stage').value = String(v('stage',0));
+  document.getElementById('f_viewed').value = String(v('viewed',0));
+  document.getElementById('f_viewedDate').value = v('viewedDate');
+  document.getElementById('f_interview').value = v('interviewDate');
+  document.getElementById('f_link').value = v('link');
+  document.getElementById('f_memo').value = v('memo');
+  openSheet('formSheet');
+}
+document.getElementById('saveBtn').addEventListener('click', async () => {
+  const company = document.getElementById('f_company').value.trim();
+  if (!company){ toast('회사명은 필수예요'); document.getElementById('f_company').focus(); return; }
+  const g = id => document.getElementById(id).value;
+  const payload = {
+    company,
+    platform: g('f_platform'),
+    role: g('f_role').trim(),
+    region: g('f_region').trim(),
+    submitDate: g('f_submit'),
+    deadline: g('f_deadline'),
+    stage: Number(g('f_stage')),
+    viewed: Number(g('f_viewed')),
+    viewedDate: g('f_viewedDate'),
+    interviewDate: g('f_interview'),
+    link: g('f_link').trim(),
+    memo: g('f_memo'),
+    updatedAt: Date.now()
+  };
+  if (payload.viewed === 1 && !payload.viewedDate) payload.viewedDate = new Date().toISOString().slice(0,10);
+  if (editingId){
+    const a = apps.find(x=>x.id===editingId);
+    Object.assign(a, payload);
+    toast('수정했어요');
+  } else {
+    apps.unshift(Object.assign({ id:'a'+Math.random().toString(36).slice(2,9), cheers:[], createdAt:Date.now() }, payload));
+    toast('등록했어요 — 파이팅! 🍀');
+  }
+  await persist(); closeSheets(); render();
+});
+
+/* ---------- 시트 열기/닫기 ---------- */
+function openSheet(id){
+  document.getElementById('sheetBg').classList.add('open');
+  document.getElementById(id).classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeSheets(){
+  document.getElementById('sheetBg').classList.remove('open');
+  document.querySelectorAll('.sheet').forEach(s => s.classList.remove('open'));
+  document.body.style.overflow = '';
+}
+document.getElementById('sheetBg').addEventListener('click', closeSheets);
+document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeSheets));
+
+/* ---------- 상단 버튼 ---------- */
+document.getElementById('addBtn').addEventListener('click', () => openForm(null));
+document.getElementById('sortBtn').addEventListener('click', () => {
+  sortMode = sortMode === 'deadline' ? 'recent' : 'deadline'; render();
+});
+document.getElementById('syncBtn').addEventListener('click', async () => {
+  const b = document.getElementById('syncBtn');
+  b.classList.add('spin');
+  await load(true);
+  setTimeout(()=>b.classList.remove('spin'), 600);
+});
+
+/* ---------- 공유 링크 ---------- */
+document.getElementById('shareBtn').addEventListener('click', async () => {
+  if (!ROOM_ID){ toast('공유방 코드가 없는 주소입니다'); return; }
+  try {
+    await navigator.clipboard.writeText(location.href);
+    toast('공유 링크를 복사했어요');
+  } catch(e){
+    window.prompt('아래 주소를 복사하세요', location.href);
+  }
+});
+
+/* Firebase는 onValue로 변경을 즉시 전달하므로 주기 새로고침이 필요하지 않습니다. */
+initRealtime();
+</script>
+</body>
+</html>
