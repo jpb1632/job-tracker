@@ -447,7 +447,7 @@ function sleep(ms){
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function sendUpdateNotification(title, message, tags=['briefcase']){
+async function sendUpdateNotification(title, message, tags=[]){
   if (!NTFY_TOPIC) return false;
 
   const payload = {
@@ -912,7 +912,7 @@ function openDetail(id){
     const sent = await sendUpdateNotification(
       '지원 내역이 삭제됐어요',
       deletedCompany,
-      ['briefcase', 'wastebasket']
+      ['wastebasket']
     );
     if (!sent) toast('삭제됐지만 알림 전송에 실패했어요');
   });
@@ -982,7 +982,7 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
       notification = {
         title: payload.company + ' 지원 정보가 변경됐어요',
         message: changeLines.slice(0, 5).join('\n'),
-        tags: ['briefcase', 'pencil']
+        tags: ['pencil']
       };
     }
     toast('수정했어요');
@@ -998,7 +998,7 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
         payload.company
         + (payload.role ? ' · ' + payload.role : '')
         + '\n' + STAGES[payload.stage] + ' · ' + viewedLabel(payload.viewed),
-      tags: ['briefcase', 'new']
+      tags: ['new']
     };
     toast('등록했어요 — 파이팅! 🍀');
   }
@@ -1187,7 +1187,7 @@ document.getElementById('testNtfyBtn').addEventListener('click', async () => {
   const sent = await sendUpdateNotification(
     '취준 트래커 테스트 알림',
     '알림 설정이 정상적으로 연결됐습니다.',
-    ['white_check_mark', 'briefcase']
+    ['white_check_mark']
   );
 
   button.disabled = false;
