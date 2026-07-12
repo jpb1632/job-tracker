@@ -78,6 +78,22 @@ label:first-child{margin-top:0}
 .sortline .cnt{font-size:12.5px;color:var(--faint);font-weight:750}
 .sortbtn{background:none;border:0;color:var(--muted);font-size:12.5px;font-weight:850;cursor:pointer;display:flex;align-items:center;gap:4px;padding:6px}
 
+.app-pagination{
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  margin-top:14px;flex-wrap:wrap;
+}
+.app-page-btn{
+  min-width:36px;height:36px;border-radius:10px;border:1px solid var(--border);
+  background:var(--surface3);color:var(--muted);font-size:12.5px;font-weight:850;
+  cursor:pointer;padding:0 10px;
+}
+.app-page-btn.active{
+  background:var(--accent);border-color:var(--accent);color:#fff;
+}
+.app-page-btn:disabled{
+  opacity:.35;cursor:default;
+}
+
 /* 지원 카드 */
 .list{display:grid;gap:10px}
 .appcard{
@@ -318,6 +334,7 @@ label:first-child{margin-top:0}
     <button class="sortbtn" id="sortBtn"></button>
   </div>
   <div class="list" id="list"></div>
+  <div class="app-pagination" id="appPagination"></div>
 
   <section class="cheer-board" id="cheerBoard">
     <div class="cheer-board-title">
@@ -679,7 +696,9 @@ let cheers = [];
 let cheerColors = {};
 let appTitle = '취준 트래커';
 let filter = 'all';
-let sortMode = 'deadline'; // deadline | recent
+let sortMode = 'recent'; // deadline | recent
+let appPage = 1;
+const APPS_PER_PAGE = 5;
 let cheerPage = 1;
 const CHEERS_PER_PAGE = 5;
 let myName = local.get('jt:name') || '';
@@ -937,16 +956,27 @@ function render(){
   document.getElementById('chips').innerHTML = FILTERS.map(([k,label,fn]) =>
     '<button class="chip '+(filter===k?'active':'')+'" data-f="'+k+'">'+label+' <b>'+apps.filter(fn).length+'</b></button>'
   ).join('');
-  document.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => { filter = c.dataset.f; render(); }));
+  document.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => {
+    filter = c.dataset.f;
+    appPage = 1;
+    render();
+  }));
 
   // 정렬
   document.getElementById('sortBtn').textContent = sortMode === 'deadline' ? '마감 임박순 ⇅' : '최신 등록순 ⇅';
 
   // 리스트
   const arr = filtered();
+  const totalPages = Math.max(1, Math.ceil(arr.length / APPS_PER_PAGE));
+  if (appPage > totalPages) appPage = totalPages;
+  if (appPage < 1) appPage = 1;
+
+  const start = (appPage - 1) * APPS_PER_PAGE;
+  const pageItems = arr.slice(start, start + APPS_PER_PAGE);
+
   document.getElementById('listCnt').textContent = arr.length + '건';
   const edgeColor = ['#3d6bd6','#3d6bd6','#fbbf24','#9a5cc9','#34d399','#f87171','#3a405e'];
-  document.getElementById('list').innerHTML = arr.length ? arr.map(a => {
+  document.getElementById('list').innerHTML = pageItems.length ? pageItems.map(a => {
     const dd = dday(a.deadline);
     let ddHtml = '';
     if (dd !== null){
@@ -975,6 +1005,52 @@ function render(){
       + '</div></div>';
   }).join('')
   : '<div class="empty">'+(filter==='all' ? '아직 등록된 지원이 없어요.<br/>오른쪽 아래 「지원 추가」로 시작하세요!' : '이 조건에 해당하는 지원이 없어요.')+'</div>';
+
+  const appPagination = document.getElementById('appPagination');
+
+  if (!arr.length || totalPages <= 1){
+    appPagination.innerHTML = '';
+  } else {
+    let pageHtml = '';
+    pageHtml += '<button class="app-page-btn" data-app-page="'+(appPage-1)+'" '+(appPage===1?'disabled':'')+'>이전</button>';
+
+    const maxVisible = 5;
+    let firstPage = Math.max(1, appPage - 2);
+    let lastPage = Math.min(totalPages, firstPage + maxVisible - 1);
+    firstPage = Math.max(1, lastPage - maxVisible + 1);
+
+    if (firstPage > 1){
+      pageHtml += '<button class="app-page-btn" data-app-page="1">1</button>';
+      if (firstPage > 2){
+        pageHtml += '<span style="color:var(--faint);font-size:12px">…</span>';
+      }
+    }
+
+    for (let p = firstPage; p <= lastPage; p++){
+      pageHtml += '<button class="app-page-btn '+(p===appPage?'active':'')+'" data-app-page="'+p+'">'+p+'</button>';
+    }
+
+    if (lastPage < totalPages){
+      if (lastPage < totalPages - 1){
+        pageHtml += '<span style="color:var(--faint);font-size:12px">…</span>';
+      }
+      pageHtml += '<button class="app-page-btn" data-app-page="'+totalPages+'">'+totalPages+'</button>';
+    }
+
+    pageHtml += '<button class="app-page-btn" data-app-page="'+(appPage+1)+'" '+(appPage===totalPages?'disabled':'')+'>다음</button>';
+    appPagination.innerHTML = pageHtml;
+  }
+
+  document.querySelectorAll('[data-app-page]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.disabled) return;
+      const nextPage = Number(btn.dataset.appPage);
+      if (!Number.isInteger(nextPage) || nextPage < 1 || nextPage > totalPages) return;
+      appPage = nextPage;
+      render();
+      document.querySelector('.sortline')?.scrollIntoView({behavior:'smooth', block:'start'});
+    });
+  });
 
   document.querySelectorAll('.appcard').forEach(c => c.addEventListener('click', () => openDetail(c.dataset.id)));
   document.querySelectorAll('.infobtn').forEach(b => b.addEventListener('click', (e) => {
@@ -1117,6 +1193,8 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
       id:'a'+Math.random().toString(36).slice(2,9),
       createdAt:Date.now()
     }, payload));
+
+    appPage = 1;
 
     notification = {
       title: '새 지원 내역이 추가됐어요',
@@ -1460,7 +1538,9 @@ document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click
 /* ---------- 상단 버튼 ---------- */
 document.getElementById('addBtn').addEventListener('click', () => openForm(null));
 document.getElementById('sortBtn').addEventListener('click', () => {
-  sortMode = sortMode === 'deadline' ? 'recent' : 'deadline'; render();
+  sortMode = sortMode === 'deadline' ? 'recent' : 'deadline';
+  appPage = 1;
+  render();
 });
 document.getElementById('syncBtn').addEventListener('click', async () => {
   const b = document.getElementById('syncBtn');
