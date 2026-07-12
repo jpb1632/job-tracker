@@ -178,7 +178,30 @@ label:first-child{margin-top:0}
 .cheer-board-title{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:3px}
 .cheer-board-title b{font-size:16px;font-weight:900;color:#ffd4e6}
 .cheer-board-title span{font-size:11.5px;color:var(--faint);font-weight:750}
-.cheer-list{display:grid;gap:8px}
+.cheer-list{display:grid;gap:10px}
+.cheer-date-group{display:grid;gap:8px}
+.cheer-date-title{
+  display:flex;align-items:center;gap:8px;
+  margin:4px 2px 0;font-size:12px;font-weight:900;color:var(--accent-text);
+}
+.cheer-date-title:after{
+  content:'';height:1px;background:var(--border-soft);flex:1;
+}
+.cheer-pagination{
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  margin-top:14px;flex-wrap:wrap;
+}
+.cheer-page-btn{
+  min-width:36px;height:36px;border-radius:10px;border:1px solid var(--border);
+  background:var(--surface3);color:var(--muted);font-size:12.5px;font-weight:850;
+  cursor:pointer;padding:0 10px;
+}
+.cheer-page-btn.active{
+  background:var(--accent);border-color:var(--accent);color:#fff;
+}
+.cheer-page-btn:disabled{
+  opacity:.35;cursor:default;
+}
 .cheer{background:#1d1220;border:1px solid #4d2a44;border-radius:12px;padding:10px 13px}
 .cheer .who{font-size:11.5px;font-weight:900;color:#ff9bc0}
 .cheer .txt{font-size:14px;line-height:1.7;white-space:pre-wrap;word-break:break-word}
@@ -285,6 +308,7 @@ label:first-child{margin-top:0}
       <span id="globalCheerCount">0개</span>
     </div>
     <div class="cheer-list" id="globalCheerList"></div>
+    <div class="cheer-pagination" id="globalCheerPagination"></div>
     <div class="cheer-form">
       <input class="nm" id="globalCheerName" maxlength="12" placeholder="이름"/>
       <input class="tx" id="globalCheerInput" maxlength="100" placeholder="예: 오늘도 파이팅!! 🍀"/>
@@ -590,6 +614,8 @@ let cheers = [];
 let appTitle = '취준 트래커';
 let filter = 'all';
 let sortMode = 'deadline'; // deadline | recent
+let cheerPage = 1;
+const CHEERS_PER_PAGE = 5;
 let myName = local.get('jt:name') || '';
 
 /* ---------- 로드/저장 ---------- */
@@ -1053,11 +1079,39 @@ function makeCheerId(){
   return 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2,8);
 }
 
+function cheerDateKey(cheer){
+  const ts = Number(cheer.createdAt);
+  if (ts && !Number.isNaN(ts)){
+    const d = new Date(ts);
+    if (!Number.isNaN(d.getTime())){
+      const y = d.getFullYear();
+      const m = String(d.getMonth()+1).padStart(2,'0');
+      const day = String(d.getDate()).padStart(2,'0');
+      return y + '-' + m + '-' + day;
+    }
+  }
+
+  const raw = String(cheer.date || '').trim();
+  const match = raw.match(/^(\d{4})[.\/-](\d{1,2})[.\/-](\d{1,2})/);
+  if (match){
+    return match[1] + '-' + String(Number(match[2])).padStart(2,'0') + '-' + String(Number(match[3])).padStart(2,'0');
+  }
+
+  return 'unknown';
+}
+
+function cheerDateLabel(key){
+  if (key === 'unknown') return '날짜 미상';
+  const parts = key.split('-');
+  return Number(parts[0]) + '년 ' + Number(parts[1]) + '월 ' + Number(parts[2]) + '일';
+}
+
 function renderGlobalCheers(){
   const list = document.getElementById('globalCheerList');
+  const pagination = document.getElementById('globalCheerPagination');
   const count = document.getElementById('globalCheerCount');
   const nameInput = document.getElementById('globalCheerName');
-  if (!list || !count || !nameInput) return;
+  if (!list || !pagination || !count || !nameInput) return;
 
   nameInput.value = myName;
   count.textContent = cheers.length + '개';
@@ -1066,14 +1120,84 @@ function renderGlobalCheers(){
     .map((c, index) => ({...c, _index:index}))
     .sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0) || b._index - a._index);
 
-  list.innerHTML = ordered.length ? ordered.map(c =>
-    '<div class="cheer" data-cheer-id="'+esc(c.id)+'">'
-    + '<div class="cheer-head"><span class="who">'+esc(c.name || '익명')+'</span>'
-    + '<span class="when">'+esc(fmtCheerDateTime(c.createdAt, c.date || ''))+'</span>'
-    + '<button class="cheer-act" data-global-edit="'+esc(c.id)+'">수정</button>'
-    + '<button class="cheer-act del" data-global-del="'+esc(c.id)+'">삭제</button></div>'
-    + '<div class="txt">'+esc(c.text || '')+'</div></div>'
-  ).join('') : '<div class="cheer-empty">아직 응원이 없어요. 첫 응원을 남겨보세요 💪</div>';
+  const totalPages = Math.max(1, Math.ceil(ordered.length / CHEERS_PER_PAGE));
+  if (cheerPage > totalPages) cheerPage = totalPages;
+  if (cheerPage < 1) cheerPage = 1;
+
+  const start = (cheerPage - 1) * CHEERS_PER_PAGE;
+  const pageItems = ordered.slice(start, start + CHEERS_PER_PAGE);
+
+  if (!pageItems.length){
+    list.innerHTML = '<div class="cheer-empty">아직 응원이 없어요. 첫 응원을 남겨보세요 💪</div>';
+    pagination.innerHTML = '';
+  } else {
+    const groups = [];
+    const groupMap = new Map();
+
+    pageItems.forEach(c => {
+      const key = cheerDateKey(c);
+      if (!groupMap.has(key)){
+        const group = {key, items:[]};
+        groupMap.set(key, group);
+        groups.push(group);
+      }
+      groupMap.get(key).items.push(c);
+    });
+
+    list.innerHTML = groups.map(group =>
+      '<div class="cheer-date-group">'
+      + '<div class="cheer-date-title">'+esc(cheerDateLabel(group.key))+'</div>'
+      + group.items.map(c =>
+        '<div class="cheer" data-cheer-id="'+esc(c.id)+'">'
+        + '<div class="cheer-head"><span class="who">'+esc(c.name || '익명')+'</span>'
+        + '<span class="when">'+esc(fmtCheerDateTime(c.createdAt, c.date || ''))+'</span>'
+        + '<button class="cheer-act" data-global-edit="'+esc(c.id)+'">수정</button>'
+        + '<button class="cheer-act del" data-global-del="'+esc(c.id)+'">삭제</button></div>'
+        + '<div class="txt">'+esc(c.text || '')+'</div></div>'
+      ).join('')
+      + '</div>'
+    ).join('');
+
+    let pageHtml = '';
+    pageHtml += '<button class="cheer-page-btn" data-cheer-page="'+(cheerPage-1)+'" '+(cheerPage===1?'disabled':'')+'>이전</button>';
+
+    const maxVisible = 5;
+    let firstPage = Math.max(1, cheerPage - 2);
+    let lastPage = Math.min(totalPages, firstPage + maxVisible - 1);
+    firstPage = Math.max(1, lastPage - maxVisible + 1);
+
+    if (firstPage > 1){
+      pageHtml += '<button class="cheer-page-btn" data-cheer-page="1">1</button>';
+      if (firstPage > 2){
+        pageHtml += '<span style="color:var(--faint);font-size:12px">…</span>';
+      }
+    }
+
+    for (let p = firstPage; p <= lastPage; p++){
+      pageHtml += '<button class="cheer-page-btn '+(p===cheerPage?'active':'')+'" data-cheer-page="'+p+'">'+p+'</button>';
+    }
+
+    if (lastPage < totalPages){
+      if (lastPage < totalPages - 1){
+        pageHtml += '<span style="color:var(--faint);font-size:12px">…</span>';
+      }
+      pageHtml += '<button class="cheer-page-btn" data-cheer-page="'+totalPages+'">'+totalPages+'</button>';
+    }
+
+    pageHtml += '<button class="cheer-page-btn" data-cheer-page="'+(cheerPage+1)+'" '+(cheerPage===totalPages?'disabled':'')+'>다음</button>';
+    pagination.innerHTML = pageHtml;
+  }
+
+  document.querySelectorAll('[data-cheer-page]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.disabled) return;
+      const nextPage = Number(btn.dataset.cheerPage);
+      if (!Number.isInteger(nextPage) || nextPage < 1 || nextPage > totalPages) return;
+      cheerPage = nextPage;
+      renderGlobalCheers();
+      document.getElementById('cheerBoard')?.scrollIntoView({behavior:'smooth', block:'start'});
+    });
+  });
 
   document.querySelectorAll('[data-global-del]').forEach(btn => {
     btn.addEventListener('click', async () => {
@@ -1134,6 +1258,7 @@ async function addGlobalCheer(){
     createdAt
   });
 
+  cheerPage = 1;
   textInput.value = '';
   await persist();
   render();
