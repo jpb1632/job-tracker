@@ -224,6 +224,29 @@ label:first-child{margin-top:0}
 }
 .toast.show{opacity:1}
 
+.notify-guide,.notify-help{
+  background:var(--surface3);border:1px solid var(--border-soft);border-radius:13px;
+  padding:13px 14px;margin-bottom:12px;
+}
+.notify-guide b,.notify-help b{font-size:13px;font-weight:900;color:var(--accent-text)}
+.notify-guide p,.notify-help p{margin:6px 0 0;font-size:13px;color:var(--muted);line-height:1.75}
+.notify-topic-box{
+  background:#0b0d15;border:1px solid var(--border);border-radius:13px;
+  padding:12px 14px;margin-bottom:12px;
+}
+.notify-topic-box span{display:block;font-size:11px;font-weight:850;color:var(--faint);margin-bottom:5px}
+.notify-topic-box code{
+  display:block;color:#d7d1ff;font-size:11px;line-height:1.55;
+  overflow-wrap:anywhere;word-break:break-all;
+}
+.notify-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.notify-actions .btn{font-size:13.5px;padding:0 9px}
+@media(max-width:520px){
+  .top-actions{gap:4px}
+  .iconbtn{min-width:40px;padding:0 9px;font-size:12px}
+  .notify-actions{grid-template-columns:1fr}
+}
+
 .sync-note{font-size:11.5px;color:var(--faint);text-align:center;margin-top:20px;line-height:1.8}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
@@ -234,6 +257,7 @@ label:first-child{margin-top:0}
   <div class="top-row">
     <div class="brand"><b id="appTitle">💼 취준 트래커 <span class="pen">✎</span></b><span id="lastSync">불러오는 중…</span></div>
     <div class="top-actions">
+      <button class="iconbtn" id="notifyBtn" aria-label="업데이트 알림 설정">알림</button>
       <button class="iconbtn" id="shareBtn" aria-label="공유 링크 복사">공유</button>
       <button class="iconbtn" id="syncBtn" aria-label="새로고침">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 4v5h-5"/></svg>
@@ -328,6 +352,45 @@ label:first-child{margin-top:0}
   </div>
 </div>
 
+
+<!-- 알림 설정 시트 -->
+<div class="sheet" id="notifySheet">
+  <div class="sheet-head">
+    <div class="grab"></div>
+    <div class="sheet-title-row">
+      <div>
+        <div class="sheet-title">업데이트 알림 설정</div>
+        <div class="sheet-sub">가입 없이 ntfy 앱 또는 웹에서 받을 수 있습니다.</div>
+      </div>
+      <button class="xbtn" data-close="1">✕</button>
+    </div>
+  </div>
+  <div class="sheet-body">
+    <div class="notify-guide">
+      <b>알림 대상</b>
+      <p>새 지원 추가, 진행 단계 변경, 미열람·열람 변경, 면접 일정 변경 등 주요 지원 정보가 바뀌면 알림을 보냅니다.</p>
+    </div>
+
+    <div class="notify-topic-box">
+      <span>알림 채널</span>
+      <code id="notifyTopicText"></code>
+    </div>
+
+    <div class="notify-actions">
+      <button class="btn primary" id="openNtfyAppBtn">휴대폰 앱에서 알림 받기</button>
+      <button class="btn" id="openNtfyWebBtn">웹에서 알림 받기</button>
+      <button class="btn" id="copyNtfyTopicBtn">채널 이름 복사</button>
+      <button class="btn" id="testNtfyBtn">테스트 알림 보내기</button>
+    </div>
+
+    <div class="notify-help">
+      <b>권장 방법</b>
+      <p>휴대폰에 <strong>ntfy</strong> 앱을 설치한 뒤 「휴대폰 앱에서 알림 받기」를 누르고 알림 권한을 허용하세요. 별도 회원가입이나 로그인은 필요 없습니다.</p>
+      <p>이 알림 채널 주소를 아는 사람은 알림 내용을 볼 수 있으므로 공유 링크를 외부에 공개하지 마세요.</p>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script type="module">
@@ -364,6 +427,107 @@ function getRoomId(){
   return m ? m[1] : '';
 }
 const ROOM_ID = getRoomId();
+
+/* ================= 무료 푸시 알림(ntfy) =================
+   - Firebase Cloud Functions/Blaze 요금제 불필요
+   - 별도 계정/로그인 불필요
+   - 현재 공유방의 긴 무작위 코드를 알림 채널 이름으로 사용 */
+const NTFY_TOPIC = ROOM_ID ? ('jt-' + ROOM_ID) : '';
+const NTFY_SERVER = 'https://ntfy.sh';
+const NTFY_WEB_URL = NTFY_TOPIC ? (NTFY_SERVER + '/' + encodeURIComponent(NTFY_TOPIC)) : '';
+const NTFY_APP_URL = NTFY_TOPIC
+  ? ('ntfy://ntfy.sh/' + encodeURIComponent(NTFY_TOPIC) + '?display=' + encodeURIComponent('취준 트래커 업데이트'))
+  : '';
+
+function trackerUrl(){
+  return location.origin + location.pathname + location.hash;
+}
+
+function sleep(ms){
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function sendUpdateNotification(title, message, tags=['briefcase']){
+  if (!NTFY_TOPIC) return false;
+
+  const payload = {
+    topic: NTFY_TOPIC,
+    title,
+    message,
+    priority: 4,
+    tags,
+    click: trackerUrl()
+  };
+
+  for (let attempt = 1; attempt <= 3; attempt++){
+    try {
+      const response = await fetch(NTFY_SERVER, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+      });
+      if (response.ok) return true;
+      if (response.status >= 400 && response.status < 500 && response.status !== 429) break;
+    } catch(error){
+      // 다음 재시도에서 처리
+    }
+    if (attempt < 3) await sleep(500 * attempt);
+  }
+  return false;
+}
+
+function viewedLabel(value){
+  return Number(value) === 1 ? '열람' : '미열람';
+}
+
+function compactDateTime(value){
+  return value ? fmtDT(value) : '미정';
+}
+
+function describeApplicationChanges(before, after){
+  const lines = [];
+
+  if (before.company !== after.company){
+    lines.push('회사명: ' + (before.company || '미입력') + ' → ' + (after.company || '미입력'));
+  }
+  if (Number(before.viewed) !== Number(after.viewed)){
+    lines.push('서류 상태: ' + viewedLabel(before.viewed) + ' → ' + viewedLabel(after.viewed));
+  }
+  if (Number(before.stage) !== Number(after.stage)){
+    lines.push('진행 단계: ' + STAGES[Number(before.stage)] + ' → ' + STAGES[Number(after.stage)]);
+  }
+  if ((before.interviewDate || '') !== (after.interviewDate || '')){
+    lines.push('면접 일정: ' + compactDateTime(before.interviewDate) + ' → ' + compactDateTime(after.interviewDate));
+  }
+  if ((before.deadline || '') !== (after.deadline || '')){
+    lines.push('마감일: ' + fmtDate(before.deadline) + ' → ' + fmtDate(after.deadline));
+  }
+  if ((before.role || '') !== (after.role || '')){
+    lines.push('직종: ' + (before.role || '미입력') + ' → ' + (after.role || '미입력'));
+  }
+  if ((before.region || '') !== (after.region || '')){
+    lines.push('지역: ' + (before.region || '미입력') + ' → ' + (after.region || '미입력'));
+  }
+  if ((before.platform || '') !== (after.platform || '')){
+    lines.push('플랫폼: ' + (before.platform || '미입력') + ' → ' + (after.platform || '미입력'));
+  }
+  if ((before.submitDate || '') !== (after.submitDate || '')){
+    lines.push('제출일: ' + fmtDate(before.submitDate) + ' → ' + fmtDate(after.submitDate));
+  }
+
+  const minorChanged =
+    (before.link || '') !== (after.link || '') ||
+    (before.memo || '') !== (after.memo || '') ||
+    (before.viewedDate || '') !== (after.viewedDate || '');
+
+  if (minorChanged && lines.length === 0){
+    lines.push('회사 정보 또는 메모가 수정됐습니다.');
+  } else if (minorChanged){
+    lines.push('회사 정보 또는 메모도 수정됐습니다.');
+  }
+
+  return lines;
+}
 const REQUIRED_CONFIG_KEYS = ['apiKey','authDomain','databaseURL','projectId','appId'];
 const CONFIG_READY = REQUIRED_CONFIG_KEYS.every(k => firebaseConfig[k] && !String(firebaseConfig[k]).startsWith('여기에_'));
 let db = null;
@@ -738,8 +902,19 @@ function openDetail(id){
       setTimeout(() => { this.classList.remove('arm'); this.textContent = '삭제'; }, 3000);
       return;
     }
+    const deletedCompany = a.company;
     apps = apps.filter(x => x.id !== id);
-    await persist(); closeSheets(); render(); toast('삭제했어요');
+    await persist();
+    closeSheets();
+    render();
+    toast('삭제했어요');
+
+    const sent = await sendUpdateNotification(
+      '지원 내역이 삭제됐어요',
+      deletedCompany,
+      ['briefcase', 'wastebasket']
+    );
+    if (!sent) toast('삭제됐지만 알림 전송에 실패했어요');
   });
   document.getElementById('editBtn').addEventListener('click', () => { closeSheets(); openForm(id); });
 
@@ -771,6 +946,7 @@ function openForm(id){
 document.getElementById('saveBtn').addEventListener('click', async () => {
   const company = document.getElementById('f_company').value.trim();
   if (!company){ toast('회사명은 필수예요'); document.getElementById('f_company').focus(); return; }
+
   const g = id => document.getElementById(id).value;
   const payload = {
     company,
@@ -787,16 +963,60 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
     memo: g('f_memo'),
     updatedAt: Date.now()
   };
-  if (payload.viewed === 1 && !payload.viewedDate) payload.viewedDate = new Date().toISOString().slice(0,10);
+
+  if (payload.viewed === 1 && !payload.viewedDate){
+    payload.viewedDate = new Date().toISOString().slice(0,10);
+  }
+
+  let notification = null;
+
   if (editingId){
-    const a = apps.find(x=>x.id===editingId);
+    const a = apps.find(x => x.id === editingId);
+    if (!a){ toast('수정할 지원 내역을 찾지 못했습니다'); return; }
+
+    const before = {...a};
+    const changeLines = describeApplicationChanges(before, payload);
     Object.assign(a, payload);
+
+    if (changeLines.length){
+      notification = {
+        title: payload.company + ' 지원 정보가 변경됐어요',
+        message: changeLines.slice(0, 5).join('\n'),
+        tags: ['briefcase', 'pencil']
+      };
+    }
     toast('수정했어요');
   } else {
-    apps.unshift(Object.assign({ id:'a'+Math.random().toString(36).slice(2,9), createdAt:Date.now() }, payload));
+    apps.unshift(Object.assign({
+      id:'a'+Math.random().toString(36).slice(2,9),
+      createdAt:Date.now()
+    }, payload));
+
+    notification = {
+      title: '새 지원 내역이 추가됐어요',
+      message:
+        payload.company
+        + (payload.role ? ' · ' + payload.role : '')
+        + '\n' + STAGES[payload.stage] + ' · ' + viewedLabel(payload.viewed),
+      tags: ['briefcase', 'new']
+    };
     toast('등록했어요 — 파이팅! 🍀');
   }
-  await persist(); closeSheets(); render();
+
+  await persist();
+  closeSheets();
+  render();
+
+  if (notification){
+    const sent = await sendUpdateNotification(
+      notification.title,
+      notification.message,
+      notification.tags
+    );
+    if (!sent){
+      toast('저장은 됐지만 알림 전송에 실패했어요');
+    }
+  }
 });
 
 
@@ -926,6 +1146,55 @@ document.getElementById('syncBtn').addEventListener('click', async () => {
   setTimeout(()=>b.classList.remove('spin'), 600);
 });
 
+/* ---------- 알림 설정 ---------- */
+function openNotificationSettings(){
+  if (!NTFY_TOPIC){
+    toast('공유방 코드가 없는 주소입니다');
+    return;
+  }
+  document.getElementById('notifyTopicText').textContent = NTFY_TOPIC;
+  openSheet('notifySheet');
+}
+
+document.getElementById('notifyBtn').addEventListener('click', openNotificationSettings);
+
+document.getElementById('openNtfyAppBtn').addEventListener('click', () => {
+  if (!NTFY_APP_URL) return;
+  location.href = NTFY_APP_URL;
+});
+
+document.getElementById('openNtfyWebBtn').addEventListener('click', () => {
+  if (!NTFY_WEB_URL) return;
+  window.open(NTFY_WEB_URL, '_blank', 'noopener');
+});
+
+document.getElementById('copyNtfyTopicBtn').addEventListener('click', async () => {
+  if (!NTFY_TOPIC) return;
+  try {
+    await navigator.clipboard.writeText(NTFY_TOPIC);
+    toast('알림 채널 이름을 복사했어요');
+  } catch(error){
+    window.prompt('아래 채널 이름을 복사하세요', NTFY_TOPIC);
+  }
+});
+
+document.getElementById('testNtfyBtn').addEventListener('click', async () => {
+  const button = document.getElementById('testNtfyBtn');
+  const original = button.textContent;
+  button.disabled = true;
+  button.textContent = '전송 중…';
+
+  const sent = await sendUpdateNotification(
+    '취준 트래커 테스트 알림',
+    '알림 설정이 정상적으로 연결됐습니다.',
+    ['white_check_mark', 'briefcase']
+  );
+
+  button.disabled = false;
+  button.textContent = original;
+  toast(sent ? '테스트 알림을 보냈어요' : '테스트 알림 전송에 실패했어요');
+});
+
 /* ---------- 공유 링크 ---------- */
 document.getElementById('shareBtn').addEventListener('click', async () => {
   if (!ROOM_ID){ toast('공유방 코드가 없는 주소입니다'); return; }
@@ -938,6 +1207,7 @@ document.getElementById('shareBtn').addEventListener('click', async () => {
 });
 
 /* Firebase는 onValue로 변경을 즉시 전달하므로 주기 새로고침이 필요하지 않습니다. */
+document.getElementById('notifyTopicText').textContent = NTFY_TOPIC || '공유방 코드 없음';
 initRealtime();
 </script>
 </body>
