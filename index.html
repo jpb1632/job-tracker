@@ -203,7 +203,7 @@ label:first-child{margin-top:0}
   opacity:.35;cursor:default;
 }
 .cheer{background:#1d1220;border:1px solid #4d2a44;border-radius:12px;padding:10px 13px}
-.cheer .who{font-size:11.5px;font-weight:900;color:#ff9bc0}
+.cheer .who{font-size:11.5px;font-weight:900}
 .cheer .txt{font-size:14px;line-height:1.7;white-space:pre-wrap;word-break:break-word}
 .cheer .when{font-size:10.5px;color:var(--faint)}
 .cheer-head{display:flex;align-items:center;gap:6px}
@@ -1106,6 +1106,24 @@ function cheerDateLabel(key){
   return Number(parts[0]) + '년 ' + Number(parts[1]) + '월 ' + Number(parts[2]) + '일';
 }
 
+function nicknameColor(name){
+  const palette = [
+    '#ff9bc0', '#8ec5ff', '#8de5c3', '#ffd27a',
+    '#c6a7ff', '#ffad8a', '#9de37b', '#7fe3ef',
+    '#f2a6ff', '#b8d98b', '#ffb3c6', '#a7c7ff'
+  ];
+
+  const value = String(name || '익명');
+  let hash = 0;
+
+  for (let i = 0; i < value.length; i++){
+    hash = ((hash << 5) - hash) + value.charCodeAt(i);
+    hash |= 0;
+  }
+
+  return palette[Math.abs(hash) % palette.length];
+}
+
 function renderGlobalCheers(){
   const list = document.getElementById('globalCheerList');
   const pagination = document.getElementById('globalCheerPagination');
@@ -1149,7 +1167,7 @@ function renderGlobalCheers(){
       + '<div class="cheer-date-title">'+esc(cheerDateLabel(group.key))+'</div>'
       + group.items.map(c =>
         '<div class="cheer" data-cheer-id="'+esc(c.id)+'">'
-        + '<div class="cheer-head"><span class="who">'+esc(c.name || '익명')+'</span>'
+        + '<div class="cheer-head"><span class="who" style="color:'+nicknameColor(c.name || '익명')+'">'+esc(c.name || '익명')+'</span>'
         + '<span class="when">'+esc(fmtCheerDateTime(c.createdAt, c.date || ''))+'</span>'
         + '<button class="cheer-act" data-global-edit="'+esc(c.id)+'">수정</button>'
         + '<button class="cheer-act del" data-global-del="'+esc(c.id)+'">삭제</button></div>'
