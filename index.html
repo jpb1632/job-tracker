@@ -203,7 +203,24 @@ label:first-child{margin-top:0}
   opacity:.35;cursor:default;
 }
 .cheer{background:#1d1220;border:1px solid #4d2a44;border-radius:12px;padding:10px 13px}
-.cheer .who{font-size:11.5px;font-weight:900}
+.cheer .who{
+  font-size:11.5px;font-weight:900;cursor:pointer;
+  padding:2px 4px;border-radius:6px;
+}
+.cheer .who:active{background:rgba(255,255,255,.08)}
+.color-picker-title{font-size:13px;color:var(--muted);margin-bottom:10px}
+.color-picker-name{font-weight:900}
+.color-palette{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+.color-swatch{
+  width:100%;aspect-ratio:1;border-radius:12px;border:2px solid transparent;
+  cursor:pointer;position:relative;
+}
+.color-swatch.active{border-color:#fff;box-shadow:0 0 0 3px rgba(139,124,248,.35)}
+.color-swatch.active:after{
+  content:'✓';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  color:#111;font-size:18px;font-weight:1000;
+}
+.color-picker-note{font-size:11.5px;color:var(--faint);margin-top:12px;line-height:1.65}
 .cheer .txt{font-size:14px;line-height:1.7;white-space:pre-wrap;word-break:break-word}
 .cheer .when{font-size:10.5px;color:var(--faint)}
 .cheer-head{display:flex;align-items:center;gap:6px}
@@ -415,6 +432,30 @@ label:first-child{margin-top:0}
   </div>
 </div>
 
+
+<!-- 닉네임 색상 선택 시트 -->
+<div class="sheet" id="colorSheet">
+  <div class="sheet-head">
+    <div class="grab"></div>
+    <div class="sheet-title-row">
+      <div>
+        <div class="sheet-title">닉네임 색상 선택</div>
+        <div class="sheet-sub">이 기기에서 작성한 같은 닉네임 댓글에 적용됩니다.</div>
+      </div>
+      <button class="xbtn" data-close="1">✕</button>
+    </div>
+  </div>
+  <div class="sheet-body">
+    <div class="color-picker-title">
+      <span class="color-picker-name" id="colorPickerName"></span>님의 색상을 선택하세요.
+    </div>
+    <div class="color-palette" id="colorPalette"></div>
+    <div class="color-picker-note">
+      색상은 Firebase에 저장되어 PC와 휴대폰에서 동일하게 표시됩니다.
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script type="module">
@@ -445,6 +486,30 @@ const local = (() => {
     set(k,v){ mem[k]=v; if(ok){ try{ localStorage.setItem(k,v); }catch(e){} } }
   };
 })();
+
+function createAuthorId(){
+  try {
+    if (crypto && typeof crypto.randomUUID === 'function'){
+      return 'u_' + crypto.randomUUID();
+    }
+  } catch(e){}
+
+  return 'u_' + Date.now().toString(36)
+    + '_' + Math.random().toString(36).slice(2,12)
+    + '_' + Math.random().toString(36).slice(2,12);
+}
+
+function getOrCreateAuthorId(){
+  const key = 'jt:authorId';
+  let id = local.get(key);
+  if (!id){
+    id = createAuthorId();
+    local.set(key, id);
+  }
+  return id;
+}
+
+const AUTHOR_ID = getOrCreateAuthorId();
 
 function getRoomId(){
   const m = location.hash.match(/^#room=([A-Za-z0-9_-]{20,100})$/);
@@ -611,6 +676,7 @@ const seed = () => {
 
 let apps = [];
 let cheers = [];
+let cheerColors = {};
 let appTitle = '취준 트래커';
 let filter = 'all';
 let sortMode = 'deadline'; // deadline | recent
@@ -631,7 +697,8 @@ function applyRemote(data, showToast=false){
       name: c.name || '익명',
       text: c.text || '',
       date: c.date || '',
-      createdAt: c.createdAt || 0
+      createdAt: c.createdAt || 0,
+      authorId: c.authorId || ''
     }));
   } else {
     // 구버전의 회사별 응원은 사라지지 않도록 공용 응원으로 한 번 이어받습니다.
@@ -643,11 +710,16 @@ function applyRemote(data, showToast=false){
           name: c.name || '익명',
           text: c.text || '',
           date: c.date || '',
-          createdAt: c.createdAt || 0
+          createdAt: c.createdAt || 0,
+          authorId: c.authorId || ''
         });
       });
     });
   }
+
+  cheerColors = (data.cheerColors && typeof data.cheerColors === 'object')
+    ? data.cheerColors
+    : {};
 
   appTitle = data.title || '취준 트래커';
   lastRaw = raw;
@@ -678,12 +750,12 @@ async function initRealtime(){
     // 첫 접속일 때만 기본 데이터를 생성합니다. 기존 데이터는 건드리지 않습니다.
     await runTransaction(stateRef, current => {
       if (current !== null) return current;
-      return { title: '취준 트래커', apps: seed(), cheers: [], updatedAt: Date.now() };
+      return { title: '취준 트래커', apps: seed(), cheers: [], cheerColors: {}, updatedAt: Date.now() };
     }, { applyLocally: false });
 
     realtimeUnsubscribe = onValue(stateRef, snapshot => {
       connectionState = 'connected';
-      applyRemote(snapshot.val() || {title:'취준 트래커', apps:[], cheers:[]});
+      applyRemote(snapshot.val() || {title:'취준 트래커', apps:[], cheers:[], cheerColors:{}});
     }, error => {
       connectionState = 'error';
       lastError = error?.message || String(error);
@@ -719,7 +791,7 @@ async function persist(){
     toast('저장할 수 없습니다 — Firebase 연결을 먼저 완료하세요');
     throw new Error('Firebase not connected');
   }
-  const data = { title: appTitle, apps, cheers, updatedAt: Date.now() };
+  const data = { title: appTitle, apps, cheers, cheerColors, updatedAt: Date.now() };
   try {
     await set(stateRef, data);
     lastRaw = JSON.stringify(data);
@@ -1106,14 +1178,34 @@ function cheerDateLabel(key){
   return Number(parts[0]) + '년 ' + Number(parts[1]) + '월 ' + Number(parts[2]) + '일';
 }
 
-function nicknameColor(name){
-  const palette = [
-    '#ff9bc0', '#8ec5ff', '#8de5c3', '#ffd27a',
-    '#c6a7ff', '#ffad8a', '#9de37b', '#7fe3ef',
-    '#f2a6ff', '#b8d98b', '#ffb3c6', '#a7c7ff'
-  ];
+const NICKNAME_COLOR_PALETTE = [
+  '#ff9bc0', '#8ec5ff', '#8de5c3', '#ffd27a',
+  '#c6a7ff', '#ffad8a', '#9de37b', '#7fe3ef',
+  '#f2a6ff', '#b8d98b', '#ffb3c6', '#a7c7ff'
+];
 
-  const value = String(name || '익명');
+function nicknameKey(name){
+  return String(name || '익명').trim().toLowerCase();
+}
+
+function colorOwnerKey(authorId, name){
+  const owner = String(authorId || 'legacy');
+  return owner + '__' + nicknameKey(name);
+}
+
+function isOwnCheer(cheer){
+  return Boolean(cheer && cheer.authorId && cheer.authorId === AUTHOR_ID);
+}
+
+function nicknameColor(name, authorId=''){
+  const ownedKey = colorOwnerKey(authorId, name);
+  if (cheerColors[ownedKey]) return cheerColors[ownedKey];
+
+  // 이전 버전에서 닉네임만으로 저장한 색상도 계속 유지합니다.
+  const oldKey = nicknameKey(name);
+  if (cheerColors[oldKey]) return cheerColors[oldKey];
+
+  const value = String(authorId || '') + '|' + String(name || '익명');
   let hash = 0;
 
   for (let i = 0; i < value.length; i++){
@@ -1121,7 +1213,7 @@ function nicknameColor(name){
     hash |= 0;
   }
 
-  return palette[Math.abs(hash) % palette.length];
+  return NICKNAME_COLOR_PALETTE[Math.abs(hash) % NICKNAME_COLOR_PALETTE.length];
 }
 
 function renderGlobalCheers(){
@@ -1167,10 +1259,18 @@ function renderGlobalCheers(){
       + '<div class="cheer-date-title">'+esc(cheerDateLabel(group.key))+'</div>'
       + group.items.map(c =>
         '<div class="cheer" data-cheer-id="'+esc(c.id)+'">'
-        + '<div class="cheer-head"><span class="who" style="color:'+nicknameColor(c.name || '익명')+'">'+esc(c.name || '익명')+'</span>'
+        + '<div class="cheer-head"><span class="who"'
+        + ' data-nickname="'+esc(c.name || '익명')+'"'
+        + ' data-cheer-owner="'+esc(c.authorId || '')+'"'
+        + ' data-cheer-id-ref="'+esc(c.id)+'"'
+        + ' style="color:'+nicknameColor(c.name || '익명', c.authorId || '')+'">'
+        + esc(c.name || '익명')+'</span>'
         + '<span class="when">'+esc(fmtCheerDateTime(c.createdAt, c.date || ''))+'</span>'
-        + '<button class="cheer-act" data-global-edit="'+esc(c.id)+'">수정</button>'
-        + '<button class="cheer-act del" data-global-del="'+esc(c.id)+'">삭제</button></div>'
+        + (isOwnCheer(c)
+          ? '<button class="cheer-act" data-global-edit="'+esc(c.id)+'">수정</button>'
+            + '<button class="cheer-act del" data-global-del="'+esc(c.id)+'">삭제</button>'
+          : '')
+        + '</div>'
         + '<div class="txt">'+esc(c.text || '')+'</div></div>'
       ).join('')
       + '</div>'
@@ -1217,9 +1317,75 @@ function renderGlobalCheers(){
     });
   });
 
+  document.querySelectorAll('.cheer .who[data-nickname]').forEach(el => {
+    el.addEventListener('click', async () => {
+      const clickedName = String(el.dataset.nickname || '').trim();
+      const clickedOwner = String(el.dataset.cheerOwner || '');
+      const cheerId = String(el.dataset.cheerIdRef || '');
+      const cheer = cheers.find(c => c.id === cheerId);
+
+      if (!cheer) return;
+
+      if (clickedOwner === AUTHOR_ID){
+        openNicknameColorPicker(clickedName, AUTHOR_ID);
+        return;
+      }
+
+      // 이전 버전 댓글에는 작성자 ID가 없으므로, 닉네임이 일치할 때만 이 기기로 가져올 수 있습니다.
+      if (!clickedOwner){
+        const currentInputName = String(
+          document.getElementById('globalCheerName')?.value || myName || ''
+        ).trim();
+
+        if (!currentInputName){
+          toast('먼저 아래 이름 칸에 기존 닉네임을 입력해 주세요');
+          document.getElementById('globalCheerName')?.focus();
+          return;
+        }
+
+        if (nicknameKey(clickedName) !== nicknameKey(currentInputName)){
+          toast('기존 댓글의 닉네임과 현재 닉네임이 달라요');
+          return;
+        }
+
+        const shouldClaim = window.confirm(
+          '이전 버전 댓글은 작성자 정보가 없습니다.\n'
+          + '같은 닉네임의 기존 댓글을 이 기기의 내 댓글로 등록할까요?'
+        );
+
+        if (!shouldClaim) return;
+
+        let claimed = 0;
+        cheers.forEach(c => {
+          if (!c.authorId && nicknameKey(c.name) === nicknameKey(clickedName)){
+            c.authorId = AUTHOR_ID;
+            claimed += 1;
+          }
+        });
+
+        if (claimed){
+          await persist();
+          render();
+          toast('기존 댓글 '+claimed+'개를 내 댓글로 등록했어요');
+          openNicknameColorPicker(clickedName, AUTHOR_ID);
+        }
+        return;
+      }
+
+      toast('다른 사람이 작성한 댓글입니다');
+    });
+  });
+
   document.querySelectorAll('[data-global-del]').forEach(btn => {
     btn.addEventListener('click', async () => {
       const id = btn.dataset.globalDel;
+      const cheer = cheers.find(c => c.id === id);
+
+      if (!isOwnCheer(cheer)){
+        toast('본인이 작성한 댓글만 삭제할 수 있어요');
+        return;
+      }
+
       cheers = cheers.filter(c => c.id !== id);
       await persist();
       render();
@@ -1232,6 +1398,12 @@ function renderGlobalCheers(){
       const id = btn.dataset.globalEdit;
       const cheer = cheers.find(c => c.id === id);
       const box = document.querySelector('.cheer[data-cheer-id="'+CSS.escape(id)+'"]');
+
+      if (!isOwnCheer(cheer)){
+        toast('본인이 작성한 댓글만 수정할 수 있어요');
+        return;
+      }
+
       if (!cheer || !box || box.querySelector('.cheer-edit')) return;
 
       box.querySelector('.txt').style.display = 'none';
@@ -1273,7 +1445,8 @@ async function addGlobalCheer(){
     name: myName || '익명',
     text: txt,
     date: fmtCheerDateTime(createdAt),
-    createdAt
+    createdAt,
+    authorId: AUTHOR_ID
   });
 
   cheerPage = 1;
@@ -1299,6 +1472,65 @@ document.getElementById('globalCheerInput').addEventListener('keydown', e => {
     addGlobalCheer();
   }
 });
+
+document.getElementById('globalCheerName').addEventListener('change', e => {
+  const nextName = String(e.target.value || '').trim().slice(0,12);
+  if (nextName){
+    myName = nextName;
+    local.set('jt:name', myName);
+  }
+});
+
+
+/* ---------- 닉네임 색상 선택 ---------- */
+let colorPickerTargetName = '';
+let colorPickerTargetAuthorId = '';
+
+function openNicknameColorPicker(name, authorId){
+  colorPickerTargetName = String(name || '').trim();
+  colorPickerTargetAuthorId = String(authorId || '');
+
+  if (colorPickerTargetAuthorId !== AUTHOR_ID){
+    toast('본인 닉네임 색상만 바꿀 수 있어요');
+    return;
+  }
+
+  document.getElementById('colorPickerName').textContent = colorPickerTargetName || '익명';
+  renderColorPalette();
+  openSheet('colorSheet');
+}
+
+function renderColorPalette(){
+  const palette = document.getElementById('colorPalette');
+  if (!palette) return;
+
+  const currentColor = nicknameColor(colorPickerTargetName, colorPickerTargetAuthorId);
+
+  palette.innerHTML = NICKNAME_COLOR_PALETTE.map(color =>
+    '<button class="color-swatch '+(color===currentColor?'active':'')+'"'
+    + ' data-color="'+color+'"'
+    + ' style="background:'+color+'"'
+    + ' aria-label="'+color+'"></button>'
+  ).join('');
+
+  palette.querySelectorAll('[data-color]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const color = btn.dataset.color;
+
+      if (colorPickerTargetAuthorId !== AUTHOR_ID){
+        toast('본인 닉네임 색상만 바꿀 수 있어요');
+        return;
+      }
+
+      const key = colorOwnerKey(AUTHOR_ID, colorPickerTargetName);
+      cheerColors[key] = color;
+      await persist();
+      closeSheets();
+      render();
+      toast(colorPickerTargetName + '님의 닉네임 색상을 변경했어요');
+    });
+  });
+}
 
 /* ---------- 시트 열기/닫기 ---------- */
 function openSheet(id){
