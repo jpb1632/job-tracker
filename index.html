@@ -440,7 +440,7 @@ label:first-child{margin-top:0}
     <div class="sheet-title-row">
       <div>
         <div class="sheet-title">닉네임 색상 선택</div>
-        <div class="sheet-sub">이 기기에서 작성한 같은 닉네임 댓글에 적용됩니다.</div>
+        <div class="sheet-sub">같은 닉네임의 모든 댓글에 적용됩니다.</div>
       </div>
       <button class="xbtn" data-close="1">✕</button>
     </div>
@@ -543,7 +543,7 @@ async function sendUpdateNotification(title, message, tags=[]){
     topic: NTFY_TOPIC,
     title,
     message,
-    priority: 4,
+    priority: 3,
     tags,
     click: trackerUrl()
   };
@@ -571,7 +571,7 @@ async function sendUpdateNotification(title, message, tags=[]){
     const params = new URLSearchParams({
       message,
       title,
-      priority: 'high',
+      priority: 'default',
       tags: Array.isArray(tags) ? tags.join(',') : String(tags || ''),
       click: trackerUrl()
     });
@@ -1188,24 +1188,18 @@ function nicknameKey(name){
   return String(name || '익명').trim().toLowerCase();
 }
 
-function colorOwnerKey(authorId, name){
-  const owner = String(authorId || 'legacy');
-  return owner + '__' + nicknameKey(name);
-}
+function nicknameColor(name){
+  const key = nicknameKey(name);
 
-function isOwnCheer(cheer){
-  return Boolean(cheer && cheer.authorId && cheer.authorId === AUTHOR_ID);
-}
+  // 현재 단순 버전에서 저장한 닉네임 공통 색상
+  if (cheerColors[key]) return cheerColors[key];
 
-function nicknameColor(name, authorId=''){
-  const ownedKey = colorOwnerKey(authorId, name);
-  if (cheerColors[ownedKey]) return cheerColors[ownedKey];
+  // 이전 작성자 ID 버전에서 저장한 색상이 있으면 이어서 사용
+  const legacySuffix = '__' + key;
+  const legacyKey = Object.keys(cheerColors).find(k => k.endsWith(legacySuffix));
+  if (legacyKey && cheerColors[legacyKey]) return cheerColors[legacyKey];
 
-  // 이전 버전에서 닉네임만으로 저장한 색상도 계속 유지합니다.
-  const oldKey = nicknameKey(name);
-  if (cheerColors[oldKey]) return cheerColors[oldKey];
-
-  const value = String(authorId || '') + '|' + String(name || '익명');
+  const value = String(name || '익명');
   let hash = 0;
 
   for (let i = 0; i < value.length; i++){
@@ -1261,15 +1255,11 @@ function renderGlobalCheers(){
         '<div class="cheer" data-cheer-id="'+esc(c.id)+'">'
         + '<div class="cheer-head"><span class="who"'
         + ' data-nickname="'+esc(c.name || '익명')+'"'
-        + ' data-cheer-owner="'+esc(c.authorId || '')+'"'
-        + ' data-cheer-id-ref="'+esc(c.id)+'"'
-        + ' style="color:'+nicknameColor(c.name || '익명', c.authorId || '')+'">'
+        + ' style="color:'+nicknameColor(c.name || '익명')+'">'
         + esc(c.name || '익명')+'</span>'
         + '<span class="when">'+esc(fmtCheerDateTime(c.createdAt, c.date || ''))+'</span>'
-        + (isOwnCheer(c)
-          ? '<button class="cheer-act" data-global-edit="'+esc(c.id)+'">수정</button>'
-            + '<button class="cheer-act del" data-global-del="'+esc(c.id)+'">삭제</button>'
-          : '')
+        + '<button class="cheer-act" data-global-edit="'+esc(c.id)+'">수정</button>'
+        + '<button class="cheer-act del" data-global-del="'+esc(c.id)+'">삭제</button>'
         + '</div>'
         + '<div class="txt">'+esc(c.text || '')+'</div></div>'
       ).join('')
@@ -1318,74 +1308,15 @@ function renderGlobalCheers(){
   });
 
   document.querySelectorAll('.cheer .who[data-nickname]').forEach(el => {
-    el.addEventListener('click', async () => {
+    el.addEventListener('click', () => {
       const clickedName = String(el.dataset.nickname || '').trim();
-      const clickedOwner = String(el.dataset.cheerOwner || '');
-      const cheerId = String(el.dataset.cheerIdRef || '');
-      const cheer = cheers.find(c => c.id === cheerId);
-
-      if (!cheer) return;
-
-      if (clickedOwner === AUTHOR_ID){
-        openNicknameColorPicker(clickedName, AUTHOR_ID);
-        return;
-      }
-
-      // 이전 버전 댓글에는 작성자 ID가 없으므로, 닉네임이 일치할 때만 이 기기로 가져올 수 있습니다.
-      if (!clickedOwner){
-        const currentInputName = String(
-          document.getElementById('globalCheerName')?.value || myName || ''
-        ).trim();
-
-        if (!currentInputName){
-          toast('먼저 아래 이름 칸에 기존 닉네임을 입력해 주세요');
-          document.getElementById('globalCheerName')?.focus();
-          return;
-        }
-
-        if (nicknameKey(clickedName) !== nicknameKey(currentInputName)){
-          toast('기존 댓글의 닉네임과 현재 닉네임이 달라요');
-          return;
-        }
-
-        const shouldClaim = window.confirm(
-          '이전 버전 댓글은 작성자 정보가 없습니다.\n'
-          + '같은 닉네임의 기존 댓글을 이 기기의 내 댓글로 등록할까요?'
-        );
-
-        if (!shouldClaim) return;
-
-        let claimed = 0;
-        cheers.forEach(c => {
-          if (!c.authorId && nicknameKey(c.name) === nicknameKey(clickedName)){
-            c.authorId = AUTHOR_ID;
-            claimed += 1;
-          }
-        });
-
-        if (claimed){
-          await persist();
-          render();
-          toast('기존 댓글 '+claimed+'개를 내 댓글로 등록했어요');
-          openNicknameColorPicker(clickedName, AUTHOR_ID);
-        }
-        return;
-      }
-
-      toast('다른 사람이 작성한 댓글입니다');
+      openNicknameColorPicker(clickedName);
     });
   });
 
   document.querySelectorAll('[data-global-del]').forEach(btn => {
     btn.addEventListener('click', async () => {
       const id = btn.dataset.globalDel;
-      const cheer = cheers.find(c => c.id === id);
-
-      if (!isOwnCheer(cheer)){
-        toast('본인이 작성한 댓글만 삭제할 수 있어요');
-        return;
-      }
-
       cheers = cheers.filter(c => c.id !== id);
       await persist();
       render();
@@ -1398,12 +1329,6 @@ function renderGlobalCheers(){
       const id = btn.dataset.globalEdit;
       const cheer = cheers.find(c => c.id === id);
       const box = document.querySelector('.cheer[data-cheer-id="'+CSS.escape(id)+'"]');
-
-      if (!isOwnCheer(cheer)){
-        toast('본인이 작성한 댓글만 수정할 수 있어요');
-        return;
-      }
-
       if (!cheer || !box || box.querySelector('.cheer-edit')) return;
 
       box.querySelector('.txt').style.display = 'none';
@@ -1484,17 +1409,9 @@ document.getElementById('globalCheerName').addEventListener('change', e => {
 
 /* ---------- 닉네임 색상 선택 ---------- */
 let colorPickerTargetName = '';
-let colorPickerTargetAuthorId = '';
 
-function openNicknameColorPicker(name, authorId){
+function openNicknameColorPicker(name){
   colorPickerTargetName = String(name || '').trim();
-  colorPickerTargetAuthorId = String(authorId || '');
-
-  if (colorPickerTargetAuthorId !== AUTHOR_ID){
-    toast('본인 닉네임 색상만 바꿀 수 있어요');
-    return;
-  }
-
   document.getElementById('colorPickerName').textContent = colorPickerTargetName || '익명';
   renderColorPalette();
   openSheet('colorSheet');
@@ -1504,7 +1421,7 @@ function renderColorPalette(){
   const palette = document.getElementById('colorPalette');
   if (!palette) return;
 
-  const currentColor = nicknameColor(colorPickerTargetName, colorPickerTargetAuthorId);
+  const currentColor = nicknameColor(colorPickerTargetName);
 
   palette.innerHTML = NICKNAME_COLOR_PALETTE.map(color =>
     '<button class="color-swatch '+(color===currentColor?'active':'')+'"'
@@ -1516,13 +1433,7 @@ function renderColorPalette(){
   palette.querySelectorAll('[data-color]').forEach(btn => {
     btn.addEventListener('click', async () => {
       const color = btn.dataset.color;
-
-      if (colorPickerTargetAuthorId !== AUTHOR_ID){
-        toast('본인 닉네임 색상만 바꿀 수 있어요');
-        return;
-      }
-
-      const key = colorOwnerKey(AUTHOR_ID, colorPickerTargetName);
+      const key = nicknameKey(colorPickerTargetName);
       cheerColors[key] = color;
       await persist();
       closeSheets();
