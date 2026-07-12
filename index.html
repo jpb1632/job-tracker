@@ -1110,6 +1110,15 @@ async function addGlobalCheer(){
   await persist();
   render();
   toast('응원을 남겼어요 ♥');
+
+  const sent = await sendUpdateNotification(
+    '새로운 응원 메시지가 도착했어요',
+    (myName || '익명') + ': ' + txt,
+    ['heart']
+  );
+  if (!sent){
+    toast('응원은 저장됐지만 알림 전송에 실패했어요');
+  }
 }
 
 document.getElementById('globalCheerBtn').addEventListener('click', addGlobalCheer);
