@@ -1117,6 +1117,13 @@ function openDetail(id){
   async function toggleViewedStatus(){
     const beforeViewed = Number(a.viewed) === 1 ? 1 : 0;
     const afterViewed = beforeViewed === 1 ? 0 : 1;
+    const nextLabel = afterViewed === 1 ? '열람' : '미열람';
+
+    const confirmed = window.confirm(
+      '서류 상태를 ' + nextLabel + '으로 변경할까요?'
+    );
+
+    if (!confirmed) return;
 
     a.viewed = afterViewed;
     a.viewedDate = afterViewed === 1
