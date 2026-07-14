@@ -126,6 +126,22 @@ label:first-child{margin-top:0}
 .bdg.role{border-color:#3a4270;color:#c3b8ff;background:#161230}
 .ac-meta{display:flex;gap:12px;margin-top:10px;font-size:12px;color:var(--faint);font-weight:650;flex-wrap:wrap}
 .ac-meta svg{width:13px;height:13px;vertical-align:-2px;margin-right:3px}
+.ac-meta .interview-datetime{
+  display:inline-flex;align-items:center;gap:4px;
+  color:#ffd784;background:#221506;border:1px solid #8a6118;
+  border-radius:8px;padding:4px 8px;font-weight:900;
+}
+.appcard.interview-pinned{
+  border-color:#8a6118;
+  box-shadow:0 0 0 1px rgba(255,215,132,.08),0 8px 22px rgba(0,0,0,.16);
+}
+.info.interview-info{
+  border-color:#8a6118;background:#221506;
+}
+.info.interview-info em{color:#d9ad52}
+.info.interview-info b{
+  color:#ffd784;font-size:16px;font-weight:950;
+}
 .infobtn{
   flex-shrink:0;display:inline-flex;align-items:center;gap:4px;
   border:1px solid var(--accent);background:var(--accent-soft);color:#dcd6ff;
@@ -941,15 +957,35 @@ const FILTERS = [
 function filtered(){
   const f = FILTERS.find(x => x[0] === filter)[2];
   const arr = apps.filter(f);
-  if (sortMode === 'deadline'){
-    arr.sort((a,b) => {
-      const da = a.deadline || '9999', db = b.deadline || '9999';
-      const ea = a.stage >= 4 ? 1 : 0, eb = b.stage >= 4 ? 1 : 0; // 종료 건은 뒤로
+
+  arr.sort((a,b) => {
+    // 면접 예정은 선택한 정렬 방식과 관계없이 항상 가장 위에 둡니다.
+    const interviewA = Number(a.stage) === 2 ? 0 : 1;
+    const interviewB = Number(b.stage) === 2 ? 0 : 1;
+
+    if (interviewA !== interviewB){
+      return interviewA - interviewB;
+    }
+
+    // 면접 예정이 여러 건이면 면접 일시가 가까운 순으로 정렬합니다.
+    if (interviewA === 0 && interviewB === 0){
+      const dateA = a.interviewDate || '9999-12-31T23:59';
+      const dateB = b.interviewDate || '9999-12-31T23:59';
+      const dateOrder = dateA.localeCompare(dateB);
+      if (dateOrder !== 0) return dateOrder;
+    }
+
+    if (sortMode === 'deadline'){
+      const da = a.deadline || '9999';
+      const db = b.deadline || '9999';
+      const ea = Number(a.stage) >= 4 ? 1 : 0;
+      const eb = Number(b.stage) >= 4 ? 1 : 0; // 종료 건은 뒤로
       return ea - eb || da.localeCompare(db);
-    });
-  } else {
-    arr.sort((a,b) => (b.createdAt||0) - (a.createdAt||0));
-  }
+    }
+
+    return (b.createdAt || 0) - (a.createdAt || 0);
+  });
+
   return arr;
 }
 
@@ -1000,7 +1036,7 @@ function render(){
       else if (dd <= 7) ddHtml = '<span class="dday soon">D-'+dd+'</span>';
       else ddHtml = '<span class="dday">D-'+dd+'</span>';
     }
-    return '<div class="appcard" data-id="'+a.id+'">'
+    return '<div class="appcard '+(Number(a.stage)===2?'interview-pinned':'')+'" data-id="'+a.id+'">'
       + '<div class="edge" style="background:'+edgeColor[a.stage]+'"></div>'
       + '<div class="ac-top"><div>'
       + '<div class="ac-company-row"><div class="ac-company">'+esc(a.company)+'</div>'
@@ -1015,7 +1051,7 @@ function render(){
       + '</div>'
       + '<div class="ac-meta">'
       + '<span>제출 '+fmtDate(a.submitDate).replace('2026년 ','')+'</span>'
-      + (a.interviewDate ? '<span>🗓 면접 '+fmtDT(a.interviewDate)+'</span>' : '')
+      + (a.interviewDate ? '<span class="interview-datetime">🗓 면접 '+fmtDT(a.interviewDate)+'</span>' : '')
       + '</div></div>';
   }).join('')
   : '<div class="empty">'+(filter==='all' ? '아직 등록된 지원이 없어요.<br/>오른쪽 아래 「지원 추가」로 시작하세요!' : '이 조건에 해당하는 지원이 없어요.')+'</div>';
@@ -1102,7 +1138,7 @@ function openDetail(id){
     + '<div class="info status-toggle" id="quickViewedToggle" role="button" tabindex="0">'
     + '<em>서류 상태</em><b>'+(a.viewed?'열람됨':'미열람')+'</b></div>'
     + '<div class="info"><em>서류 열람일</em><b>'+fmtDate(a.viewedDate)+'</b></div>'
-    + '<div class="info wide"><em>면접 일자</em><b>'+(a.interviewDate?fmtDT(a.interviewDate):'미정')+'</b></div>'
+    + '<div class="info wide '+(a.interviewDate?'interview-info':'')+'"><em>면접 일자 · 시간</em><b>'+(a.interviewDate?fmtDT(a.interviewDate):'미정')+'</b></div>'
     + '</div>';
 
   const link = '';
