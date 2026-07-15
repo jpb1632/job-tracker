@@ -131,7 +131,6 @@ label:first-child{margin-top:0}
   display:inline-flex;align-items:center;gap:4px;
   color:#ffd784;font-weight:950;
 }
-.appcard.interview-pinned{}
 .info.interview-info{
   border-color:#8a6118;
   background:rgba(138,97,24,.12);
@@ -175,13 +174,6 @@ label:first-child{margin-top:0}
   white-space:pre-wrap;line-height:1.65;
   color:#cdd4f5;font-size:12.5px;
 }
-.card-info-link{
-  margin-top:9px;border:1px solid var(--accent);
-  background:var(--accent-soft);color:#dcd6ff;
-  border-radius:9px;padding:7px 10px;
-  font-size:11.5px;font-weight:850;cursor:pointer;
-}
-.card-info-panel .card-info-link:first-child{margin-top:0}
 
 .empty{background:var(--surface3);border:1px dashed var(--border);border-radius:var(--radius);padding:34px 18px;text-align:center;color:var(--muted);font-size:14.5px;line-height:1.9}
 
@@ -1036,28 +1028,23 @@ function filtered(){
   const arr = apps.filter(f);
 
   arr.sort((a,b) => {
-    // 면접 예정은 선택한 정렬 방식과 관계없이 항상 가장 위에 둡니다.
-    const interviewA = Number(a.stage) === 2 ? 0 : 1;
-    const interviewB = Number(b.stage) === 2 ? 0 : 1;
+    const stageA = Number(a.stage || 0);
+    const stageB = Number(b.stage || 0);
 
-    if (interviewA !== interviewB){
-      return interviewA - interviewB;
+    // 상태 순서를 항상 가장 우선합니다.
+    if (stageA !== stageB){
+      return stageA - stageB;
     }
 
-    // 면접 예정이 여러 건이면 면접 일시가 가까운 순으로 정렬합니다.
-    if (interviewA === 0 && interviewB === 0){
-      const dateA = a.interviewDate || '9999-12-31T23:59';
-      const dateB = b.interviewDate || '9999-12-31T23:59';
-      const dateOrder = dateA.localeCompare(dateB);
-      if (dateOrder !== 0) return dateOrder;
-    }
-
+    // 같은 상태 안에서만 선택한 정렬 기준을 적용합니다.
     if (sortMode === 'deadline'){
-      const da = a.deadline || '9999';
-      const db = b.deadline || '9999';
-      const ea = Number(a.stage) >= 5 ? 1 : 0;
-      const eb = Number(b.stage) >= 5 ? 1 : 0; // 종료 건은 뒤로
-      return ea - eb || da.localeCompare(db);
+      const deadlineA = a.deadline || '9999-12-31';
+      const deadlineB = b.deadline || '9999-12-31';
+      const deadlineOrder = deadlineA.localeCompare(deadlineB);
+
+      if (deadlineOrder !== 0){
+        return deadlineOrder;
+      }
     }
 
     return (b.createdAt || 0) - (a.createdAt || 0);
@@ -1113,29 +1100,24 @@ function render(){
       else if (dd <= 7) ddHtml = '<span class="dday soon">D-'+dd+'</span>';
       else ddHtml = '<span class="dday">D-'+dd+'</span>';
     }
-    const hasQuickInfo = Boolean(
-      String(a.memo || '').trim() || String(a.link || '').trim()
+    const hasCompanyMemo = Boolean(
+      String(a.memo || '').trim()
     );
     const infoOpen = expandedAppInfo.has(a.id);
-    const quickInfoHtml = hasQuickInfo
+    const quickInfoHtml = hasCompanyMemo
       ? '<div class="card-quick-info '+(infoOpen?'open':'')+'">'
         + '<button class="card-info-toggle" data-info-toggle="'+esc(a.id)+'">'
         + '<span class="card-info-arrow">›</span>'
-        + '<span>회사 정보 · 메모</span>'
+        + '<span>회사 메모</span>'
         + '</button>'
         + (infoOpen
           ? '<div class="card-info-panel">'
-            + (String(a.memo || '').trim()
-              ? '<div class="card-info-memo">'+esc(a.memo)+'</div>'
-              : '')
-            + (String(a.link || '').trim()
-              ? '<button class="card-info-link" data-info-link="'+esc(a.id)+'">등록된 회사 정보 링크 열기 ↗</button>'
-              : '')
+            + '<div class="card-info-memo">'+esc(a.memo)+'</div>'
             + '</div>'
           : '')
         + '</div>'
       : '';
-    return '<div class="appcard '+(Number(a.stage)===2?'interview-pinned':'')+'" data-id="'+a.id+'">'
+    return '<div class="appcard" data-id="'+a.id+'">'
       + '<div class="edge" style="background:'+edgeColor[a.stage]+'"></div>'
       + '<div class="ac-top"><div>'
       + '<div class="ac-company-row"><div class="ac-company">'+esc(a.company)+'</div>'
@@ -1222,16 +1204,6 @@ function render(){
     panel.addEventListener('click', e => e.stopPropagation());
   });
 
-  document.querySelectorAll('[data-info-link]').forEach(btn => {
-    btn.addEventListener('click', e => {
-      e.stopPropagation();
-      const a = apps.find(x => x.id === btn.dataset.infoLink);
-      if (a && String(a.link || '').trim()){
-        openUrl(a.link.trim());
-      }
-    });
-  });
-
   document.querySelectorAll('.appcard').forEach(c => c.addEventListener('click', () => openDetail(c.dataset.id)));
   document.querySelectorAll('.infobtn').forEach(b => b.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -1273,7 +1245,7 @@ function openDetail(id){
     + '</div>';
 
   const link = '';
-  const memo = a.memo ? '<div class="sec-label">회사 정보 · 메모</div><div class="memo-view">'+esc(a.memo)+'</div>' : '';
+  const memo = a.memo ? '<div class="sec-label">회사 메모</div><div class="memo-view">'+esc(a.memo)+'</div>' : '';
 
   document.getElementById('dBody').innerHTML =
     pipe + info + link + memo
