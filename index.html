@@ -74,6 +74,33 @@ label:first-child{margin-top:0}
 .dbox.good b{color:var(--teal)}
 .dbox.acc b{color:var(--accent-text)}
 
+.interview-section{
+  margin:2px 0 18px;
+}
+.interview-section[hidden]{display:none}
+.interview-section-head{
+  display:flex;align-items:center;justify-content:space-between;
+  margin:0 2px 10px;
+}
+.interview-section-tab{
+  display:inline-flex;align-items:center;gap:7px;
+  color:#ffd784;font-size:13px;font-weight:950;
+}
+.interview-section-tab:before{
+  content:'';
+  width:7px;height:7px;border-radius:50%;
+  background:#f1b94b;box-shadow:0 0 0 4px rgba(241,185,75,.12);
+}
+.interview-section-count{
+  color:var(--faint);font-size:12px;font-weight:800;
+}
+.interview-list{
+  display:flex;flex-direction:column;gap:10px;
+}
+.interview-divider{
+  height:1px;background:var(--border-soft);
+  margin:2px 0 16px;
+}
 .sortline{display:flex;justify-content:space-between;align-items:center;margin:0 2px 10px}
 .sortline .cnt{font-size:12.5px;color:var(--faint);font-weight:750}
 .sortbtn{background:none;border:0;color:var(--muted);font-size:12.5px;font-weight:850;cursor:pointer;display:flex;align-items:center;gap:4px;padding:6px}
@@ -122,7 +149,6 @@ label:first-child{margin-top:0}
 .bdg.stage-4{border-color:#287f9c;color:#8adcf5;background:#071d27}
 .bdg.stage-5{border-color:#1f8a5f;color:#7df0bd;background:#071d16}
 .bdg.stage-6{border-color:#a53b44;color:#ff9ba3;background:#230c0f}
-.bdg.stage-7{border-color:#3a405e;color:#8b93b8;background:#12151f}
 .bdg.viewed{border-color:#2f9e67;color:#9ff0c3;background:#09251a}
 .bdg.role{border-color:#3a4270;color:#c3b8ff;background:#161230}
 .ac-meta{display:flex;gap:12px;margin-top:10px;font-size:12px;color:var(--faint);font-weight:650;flex-wrap:wrap}
@@ -384,6 +410,16 @@ label:first-child{margin-top:0}
 
 <main class="wrap">
   <div class="dash" id="dash"></div>
+
+  <section class="interview-section" id="interviewSection" hidden>
+    <div class="interview-section-head">
+      <div class="interview-section-tab">면접예정</div>
+      <span class="interview-section-count" id="interviewSectionCount">0건</span>
+    </div>
+    <div class="interview-list" id="interviewList"></div>
+    <div class="interview-divider"></div>
+  </section>
+
   <div class="sortline">
     <span class="cnt" id="listCnt"></span>
     <button class="sortbtn" id="sortBtn"></button>
@@ -725,7 +761,7 @@ let connectionState = 'loading'; // loading | connected | config | room | error
 let lastRaw = '';
 let lastError = '';
 
-const STAGE_SCHEMA_VERSION = 2;
+const STAGE_SCHEMA_VERSION = 3;
 const STAGES = [
   '서류 지원',
   '서류 통과',
@@ -733,17 +769,24 @@ const STAGES = [
   '면접 결과대기',
   '1차 합격',
   '최종 합격',
-  '불합격',
-  '지원 마감'
+  '불합격'
 ];
 
-function migrateLegacyStage(stage){
-  const n = Number(stage);
+function migrateStage(stage, fromVersion=1){
+  let n = Number(stage);
   if (!Number.isFinite(n)) return 0;
 
-  // 구버전의 4:최종합격, 5:불합격, 6:지원마감을
-  // 새 단계에서 각각 5, 6, 7로 이동합니다.
-  return n >= 4 ? Math.min(n + 1, 7) : Math.max(n, 0);
+  // v1 → v2: 1차 합격 단계가 추가되면서 기존 결과 단계가 한 칸 이동했습니다.
+  if (fromVersion < 2){
+    n = n >= 4 ? Math.min(n + 1, 7) : Math.max(n, 0);
+  }
+
+  // v2 → v3: 지원 마감 상태를 제거하고 기존 항목은 불합격으로 보존합니다.
+  if (fromVersion < 3 && n === 7){
+    n = 6;
+  }
+
+  return Math.min(Math.max(n, 0), 6);
 }
 const seed = () => {
   const t = '2026-07-10';
@@ -786,8 +829,8 @@ function applyRemote(data, showToast=false){
   apps = Array.isArray(data.apps) ? data.apps.map(a => ({
     ...a,
     stage: incomingStageVersion < STAGE_SCHEMA_VERSION
-      ? migrateLegacyStage(a.stage)
-      : Number(a.stage || 0)
+      ? migrateStage(a.stage, incomingStageVersion)
+      : Math.min(Math.max(Number(a.stage || 0), 0), 6)
   })) : [];
 
   if (Array.isArray(data.cheers)){
@@ -859,9 +902,14 @@ async function initRealtime(){
         };
       }
 
-      if (Number(current.stageSchemaVersion || 1) < STAGE_SCHEMA_VERSION){
+      const currentStageVersion = Number(current.stageSchemaVersion || 1);
+
+      if (currentStageVersion < STAGE_SCHEMA_VERSION){
         current.apps = Array.isArray(current.apps)
-          ? current.apps.map(a => ({...a, stage: migrateLegacyStage(a.stage)}))
+          ? current.apps.map(a => ({
+              ...a,
+              stage: migrateStage(a.stage, currentStageVersion)
+            }))
           : [];
         current.stageSchemaVersion = STAGE_SCHEMA_VERSION;
         current.updatedAt = Date.now();
@@ -1023,17 +1071,46 @@ const FILTERS = [
   ['interview','면접', a => [2,3,4].includes(Number(a.stage))],
   ['done','종료', a => Number(a.stage) >= 5],
 ];
+function interviewScheduled(){
+  return apps
+    .filter(a => Number(a.stage) === 2)
+    .sort((a,b) => {
+      const dateA = a.interviewDate || '9999-12-31T23:59';
+      const dateB = b.interviewDate || '9999-12-31T23:59';
+      const dateOrder = dateA.localeCompare(dateB);
+
+      if (dateOrder !== 0){
+        return dateOrder;
+      }
+
+      return (b.createdAt || 0) - (a.createdAt || 0);
+    });
+}
+
 function filtered(){
   const f = FILTERS.find(x => x[0] === filter)[2];
-  const arr = apps.filter(f);
+
+  // 면접예정은 위 전용 영역에만 표시하고 아래 목록에서는 제외합니다.
+  const arr = apps.filter(a => Number(a.stage) !== 2 && f(a));
+
+  const stagePriority = {
+    5: 0, // 최종 합격
+    6: 1, // 불합격
+    4: 2, // 1차 합격
+    3: 3, // 면접 결과대기
+    1: 4, // 서류 통과
+    0: 5  // 서류 지원
+  };
 
   arr.sort((a,b) => {
     const stageA = Number(a.stage || 0);
     const stageB = Number(b.stage || 0);
+    const priorityA = stagePriority[stageA] ?? 99;
+    const priorityB = stagePriority[stageB] ?? 99;
 
-    // 상태 순서를 항상 가장 우선합니다.
-    if (stageA !== stageB){
-      return stageA - stageB;
+    // 상태 우선순위를 가장 먼저 적용합니다.
+    if (priorityA !== priorityB){
+      return priorityA - priorityB;
     }
 
     // 같은 상태 안에서만 선택한 정렬 기준을 적용합니다.
@@ -1051,6 +1128,57 @@ function filtered(){
   });
 
   return arr;
+}
+
+/* ---------- 지원 카드 ---------- */
+function appCardHtml(a){
+  const edgeColor = ['#3d6bd6','#3d6bd6','#fbbf24','#9a5cc9','#38a6c5','#34d399','#f87171'];
+  const dd = dday(a.deadline);
+  let ddHtml = '';
+
+  if (dd !== null){
+    if (Number(a.stage) >= 5 || dd < 0) ddHtml = '<span class="dday over">'+(dd<0?'마감':'종료')+'</span>';
+    else if (dd === 0) ddHtml = '<span class="dday urgent">오늘 마감</span>';
+    else if (dd <= 3) ddHtml = '<span class="dday urgent">D-'+dd+'</span>';
+    else if (dd <= 7) ddHtml = '<span class="dday soon">D-'+dd+'</span>';
+    else ddHtml = '<span class="dday">D-'+dd+'</span>';
+  }
+
+  const hasCompanyMemo = Boolean(String(a.memo || '').trim());
+  const infoOpen = expandedAppInfo.has(a.id);
+  const quickInfoHtml = hasCompanyMemo
+    ? '<div class="card-quick-info '+(infoOpen?'open':'')+'">'
+      + '<button class="card-info-toggle" data-info-toggle="'+esc(a.id)+'">'
+      + '<span class="card-info-arrow">›</span>'
+      + '<span>회사 메모</span>'
+      + '</button>'
+      + (infoOpen
+        ? '<div class="card-info-panel">'
+          + '<div class="card-info-memo">'+esc(a.memo)+'</div>'
+          + '</div>'
+        : '')
+      + '</div>'
+    : '';
+
+  return '<div class="appcard" data-id="'+a.id+'">'
+    + '<div class="edge" style="background:'+edgeColor[Number(a.stage)||0]+'"></div>'
+    + '<div class="ac-top"><div>'
+    + '<div class="ac-company-row"><div class="ac-company">'+esc(a.company)+'</div>'
+    + '<button class="infobtn" data-link="'+a.id+'">회사정보 '
+    + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M10 14 21 3M21 3h-6M21 3v6M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>'
+    + '</button></div>'
+    + '<div class="ac-sub">'+esc(a.platform)+' · '+esc(a.region||'지역 미입력')+'</div></div>'+ddHtml+'</div>'
+    + '<div class="ac-badges">'
+    + (a.role ? '<span class="bdg role">'+esc(a.role)+'</span>' : '')
+    + '<span class="bdg stage-'+a.stage+'">● '+STAGES[a.stage]+'</span>'
+    + '<span class="bdg '+(a.viewed?'viewed':'')+'">'+(a.viewed?'열람':'미열람')+'</span>'
+    + '</div>'
+    + '<div class="ac-meta">'
+    + '<span>제출 '+fmtDate(a.submitDate).replace('2026년 ','')+'</span>'
+    + (a.interviewDate ? '<span class="interview-datetime">🗓 면접 '+fmtDT(a.interviewDate)+'</span>' : '')
+    + '</div>'
+    + quickInfoHtml
+    + '</div>';
 }
 
 /* ---------- 렌더 ---------- */
@@ -1076,10 +1204,19 @@ function render(){
     render();
   }));
 
+  // 면접예정 전용 영역
+  const interviewItems = interviewScheduled();
+  const interviewSection = document.getElementById('interviewSection');
+  const interviewList = document.getElementById('interviewList');
+
+  interviewSection.hidden = interviewItems.length === 0;
+  document.getElementById('interviewSectionCount').textContent = interviewItems.length + '건';
+  interviewList.innerHTML = interviewItems.map(appCardHtml).join('');
+
   // 정렬
   document.getElementById('sortBtn').textContent = sortMode === 'deadline' ? '마감 임박순 ⇅' : '최신 등록순 ⇅';
 
-  // 리스트
+  // 나머지 리스트
   const arr = filtered();
   const totalPages = Math.max(1, Math.ceil(arr.length / APPS_PER_PAGE));
   if (appPage > totalPages) appPage = totalPages;
@@ -1088,56 +1225,12 @@ function render(){
   const start = (appPage - 1) * APPS_PER_PAGE;
   const pageItems = arr.slice(start, start + APPS_PER_PAGE);
 
-  document.getElementById('listCnt').textContent = arr.length + '건';
-  const edgeColor = ['#3d6bd6','#3d6bd6','#fbbf24','#9a5cc9','#38a6c5','#34d399','#f87171','#3a405e'];
-  document.getElementById('list').innerHTML = pageItems.length ? pageItems.map(a => {
-    const dd = dday(a.deadline);
-    let ddHtml = '';
-    if (dd !== null){
-      if (Number(a.stage) >= 5 || dd < 0) ddHtml = '<span class="dday over">'+(dd<0?'마감':'종료')+'</span>';
-      else if (dd === 0) ddHtml = '<span class="dday urgent">오늘 마감</span>';
-      else if (dd <= 3) ddHtml = '<span class="dday urgent">D-'+dd+'</span>';
-      else if (dd <= 7) ddHtml = '<span class="dday soon">D-'+dd+'</span>';
-      else ddHtml = '<span class="dday">D-'+dd+'</span>';
-    }
-    const hasCompanyMemo = Boolean(
-      String(a.memo || '').trim()
-    );
-    const infoOpen = expandedAppInfo.has(a.id);
-    const quickInfoHtml = hasCompanyMemo
-      ? '<div class="card-quick-info '+(infoOpen?'open':'')+'">'
-        + '<button class="card-info-toggle" data-info-toggle="'+esc(a.id)+'">'
-        + '<span class="card-info-arrow">›</span>'
-        + '<span>회사 메모</span>'
-        + '</button>'
-        + (infoOpen
-          ? '<div class="card-info-panel">'
-            + '<div class="card-info-memo">'+esc(a.memo)+'</div>'
-            + '</div>'
-          : '')
-        + '</div>'
-      : '';
-    return '<div class="appcard" data-id="'+a.id+'">'
-      + '<div class="edge" style="background:'+edgeColor[a.stage]+'"></div>'
-      + '<div class="ac-top"><div>'
-      + '<div class="ac-company-row"><div class="ac-company">'+esc(a.company)+'</div>'
-      + '<button class="infobtn" data-link="'+a.id+'">회사정보 '
-      + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M10 14 21 3M21 3h-6M21 3v6M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>'
-      + '</button></div>'
-      + '<div class="ac-sub">'+esc(a.platform)+' · '+esc(a.region||'지역 미입력')+'</div></div>'+ddHtml+'</div>'
-      + '<div class="ac-badges">'
-      + (a.role ? '<span class="bdg role">'+esc(a.role)+'</span>' : '')
-      + '<span class="bdg stage-'+a.stage+'">● '+STAGES[a.stage]+'</span>'
-      + '<span class="bdg '+(a.viewed?'viewed':'')+'">'+(a.viewed?'열람':'미열람')+'</span>'
-      + '</div>'
-      + '<div class="ac-meta">'
-      + '<span>제출 '+fmtDate(a.submitDate).replace('2026년 ','')+'</span>'
-      + (a.interviewDate ? '<span class="interview-datetime">🗓 면접 '+fmtDT(a.interviewDate)+'</span>' : '')
-      + '</div>'
-      + quickInfoHtml
-      + '</div>';
-  }).join('')
-  : '<div class="empty">'+(filter==='all' ? '아직 등록된 지원이 없어요.<br/>오른쪽 아래 「지원 추가」로 시작하세요!' : '이 조건에 해당하는 지원이 없어요.')+'</div>';
+  document.getElementById('listCnt').textContent = '나머지 지원 '+arr.length+'건';
+  document.getElementById('list').innerHTML = pageItems.length
+    ? pageItems.map(appCardHtml).join('')
+    : '<div class="empty">'+(filter==='all'
+      ? '면접예정을 제외한 나머지 지원이 없어요.'
+      : '이 조건에 해당하는 나머지 지원이 없어요.')+'</div>';
 
   const appPagination = document.getElementById('appPagination');
 
@@ -1225,7 +1318,7 @@ function openDetail(id){
 
   // 파이프라인: 합/불/마감은 4번째 노드에 결과로 표시
   const stageNum = Number(a.stage);
-  const isBad = stageNum === 6 || stageNum === 7;
+  const isBad = stageNum === 6;
   const isGood = stageNum === 5;
   const nodes = ['서류 지원','서류 통과','면접','결과'];
   const nodeOn = stageNum === 0 ? 0 : stageNum === 1 ? 1 : (stageNum === 2 || stageNum === 3) ? 2 : 3;
