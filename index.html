@@ -61,6 +61,31 @@ label:first-child{margin-top:0}
 .chip b{font-size:12px;color:var(--faint)}
 .chip.active{background:var(--accent-soft);border-color:var(--accent);color:#e6e0ff}
 .chip.active b{color:var(--accent-text)}
+.chip[data-f="stale"]{
+  border-color:rgba(148,163,184,.34);
+  color:#b8c0d3;
+}
+.chip[data-f="stale"].active{
+  background:#3a4054;
+  border-color:#59627a;
+  color:#f1f3f8;
+  box-shadow:0 5px 16px rgba(0,0,0,.18);
+}
+.chip[data-f="stale"].active b{color:#d7dce8}
+.stale-note{
+  display:flex;align-items:flex-start;gap:8px;
+  margin:0 2px 12px;padding:10px 12px;
+  border:1px solid rgba(148,163,184,.22);
+  border-radius:10px;background:rgba(148,163,184,.055);
+  color:#aeb7ca;font-size:11.5px;font-weight:700;line-height:1.55;
+}
+.stale-note[hidden]{display:none}
+.stale-note strong{color:#d9deea}
+.bdg.stale{
+  border-color:#59627a;
+  color:#c7cedd;
+  background:#171b26;
+}
 
 /* ---------- 본문 ---------- */
 .wrap{max-width:760px;margin:0 auto;padding:14px 16px 30px}
@@ -437,6 +462,11 @@ label:first-child{margin-top:0}
     <div class="interview-list" id="interviewList"></div>
     <div class="interview-divider"></div>
   </section>
+
+  <div class="stale-note" id="staleNote" hidden>
+    <span>⏳</span>
+    <span><strong>장기 미응답</strong>은 지원 후 7일이 지났지만 아직 서류 지원 상태인 항목입니다. 상태가 바뀌면 자동으로 일반 목록으로 돌아갑니다.</span>
+  </div>
 
   <div class="sortline">
     <span class="cnt" id="listCnt"></span>
@@ -1061,6 +1091,17 @@ function dday(deadline){
   const d = new Date(deadline+'T00:00:00');
   return Math.round((d - today)/86400000);
 }
+function daysSinceSubmit(date){
+  if(!date) return null;
+  const submitted = new Date(date+'T00:00:00');
+  if(Number.isNaN(submitted.getTime())) return null;
+  const today = new Date(); today.setHours(0,0,0,0);
+  return Math.floor((today - submitted)/86400000);
+}
+function isStaleApplication(app){
+  const elapsed = daysSinceSubmit(app.submitDate);
+  return Number(app.stage) === 0 && elapsed !== null && elapsed > 7;
+}
 function fmtCheerDateTime(ts, fallback=''){
   const n = Number(ts);
   if (!n || Number.isNaN(n)) return fallback || '';
@@ -1082,14 +1123,17 @@ function toast(msg){
 
 /* ---------- 필터/정렬 ---------- */
 const FILTERS = [
-  ['all','전체', a => true],
-  ['active','진행중', a => Number(a.stage) <= 4],
-  ['unviewed','미열람', a => Number(a.viewed) === 0],
-  ['viewed','열람됨', a => Number(a.viewed) === 1],
+  ['all','전체', a => !isStaleApplication(a)],
+  ['active','진행중', a => Number(a.stage) <= 4 && !isStaleApplication(a)],
+  ['unviewed','미열람', a => Number(a.viewed) === 0 && !isStaleApplication(a)],
+  ['viewed','열람됨', a => Number(a.viewed) === 1 && !isStaleApplication(a)],
   ['interview','면접', a => [2,3,4].includes(Number(a.stage))],
   ['done','종료', a => Number(a.stage) >= 5],
+  ['stale','장기 미응답', a => isStaleApplication(a)],
 ];
 function interviewScheduled(){
+  if (!['all','active','interview'].includes(filter)) return [];
+
   return apps
     .filter(a => Number(a.stage) === 2)
     .sort((a,b) => {
@@ -1107,6 +1151,19 @@ function interviewScheduled(){
 
 function filtered(){
   const f = FILTERS.find(x => x[0] === filter)[2];
+
+  if (filter === 'stale'){
+    return apps
+      .filter(f)
+      .sort((a,b) => {
+        const dateA = a.submitDate || '9999-12-31';
+        const dateB = b.submitDate || '9999-12-31';
+        const dateOrder = dateA.localeCompare(dateB);
+        return dateOrder !== 0
+          ? dateOrder
+          : (a.createdAt || 0) - (b.createdAt || 0);
+      });
+  }
 
   // 면접예정은 위 전용 영역에만 표시하고 아래 목록에서는 제외합니다.
   const arr = apps.filter(a => Number(a.stage) !== 2 && f(a));
@@ -1190,6 +1247,9 @@ function appCardHtml(a){
     + (a.role ? '<span class="bdg role">'+esc(a.role)+'</span>' : '')
     + '<span class="bdg stage-'+a.stage+'">● '+STAGES[a.stage]+'</span>'
     + '<span class="bdg '+(a.viewed?'viewed':'')+'">'+(a.viewed?'열람':'미열람')+'</span>'
+    + (isStaleApplication(a)
+      ? '<span class="bdg stale">'+daysSinceSubmit(a.submitDate)+'일째 미응답</span>'
+      : '')
     + '</div>'
     + '<div class="ac-meta">'
     + '<span>제출 '+fmtDate(a.submitDate).replace('2026년 ','')+'</span>'
@@ -1222,6 +1282,9 @@ function render(){
     render();
   }));
 
+  const staleNote = document.getElementById('staleNote');
+  staleNote.hidden = filter !== 'stale';
+
   // 면접예정 전용 영역
   const interviewItems = interviewScheduled();
   const interviewSection = document.getElementById('interviewSection');
@@ -1243,12 +1306,18 @@ function render(){
   const start = (appPage - 1) * APPS_PER_PAGE;
   const pageItems = arr.slice(start, start + APPS_PER_PAGE);
 
-  document.getElementById('listCnt').textContent = '나머지 지원 '+arr.length+'건';
+  document.getElementById('listCnt').textContent = filter === 'stale'
+    ? '장기 미응답 ' + arr.length + '건'
+    : '나머지 지원 ' + arr.length + '건';
   document.getElementById('list').innerHTML = pageItems.length
     ? pageItems.map(appCardHtml).join('')
-    : '<div class="empty">'+(filter==='all'
-      ? '면접예정을 제외한 나머지 지원이 없어요.'
-      : '이 조건에 해당하는 나머지 지원이 없어요.')+'</div>';
+    : '<div class="empty">'+(
+      filter === 'stale'
+        ? '현재 장기 미응답으로 분류된 지원이 없어요.'
+        : filter === 'all'
+          ? '면접예정을 제외한 나머지 지원이 없어요.'
+          : '이 조건에 해당하는 나머지 지원이 없어요.'
+    )+'</div>';
 
   const appPagination = document.getElementById('appPagination');
 
